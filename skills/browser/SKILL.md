@@ -1,13 +1,11 @@
 ---
 name: browser
-description: "Drive a real Chrome browser: open any URL, local file or dev server; click, type and press keys; screenshot; read the rendered page; log in and act in the user's accounts. Use for JavaScript-rendered pages, testing and debugging UI, screenshots of pages you build, and whenever a fetch result comes back summarized or lower fidelity than the task needs."
+description: "Drive a real Chrome browser: read and act on websites, local files and dev servers; click, type, screenshot; log in to the user's accounts; test and debug UI you build. Prefer an API designed for the task; reserve plain fetch or curl for documentation and downloads, and use the browser when unsure."
 ---
 
 # Browser
 
 Follow the workflow below; open linked `docs/` only when the stated task or problem applies. The skill drives Chrome through the Surf runtime (`surf_agent`).
-
-For static content a plain fetch already returns in full, or an API the task can call directly, fetch is cheaper; use the browser for everything that needs a rendered page or interaction.
 
 Run Python through `scripts/run.py`. Named browser threads persist between calls; Python variables, handles and their emission baselines live with the interpreter that ran the code.
 
