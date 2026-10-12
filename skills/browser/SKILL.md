@@ -1,6 +1,6 @@
 ---
 name: browser
-description: "Drive a real Chrome browser: read and act on websites, local files and dev servers; click, type, screenshot; log in to the user's accounts; test and debug UI you build. Prefer an API designed for the task; reserve plain fetch or curl for documentation and downloads, and use the browser when unsure."
+description: "Drive a real Chrome browser: read and act on websites, local files and dev servers; click, type, screenshot; log in to the user's accounts; test and debug UI you build. Prefer an API designed for the task; reserve plain fetch or curl for documentation, raw files and downloads, and use the browser when unsure."
 ---
 
 # Browser
