@@ -43,7 +43,7 @@ Follow the [Google Search skill](skills/google-search/SKILL.md) for retrieval an
 
 ## Profiles and login
 
-Surf uses a dedicated Chrome profile, separate from the user's main tabs. Its windows open in the background without taking focus. On Linux, window rules can match app-id / WM_CLASS `surf-agent` (set `SURF_AGENT_APP_ID` to change it), for example to keep the windows off your workspace. For manual login, extension setup, or existing Chrome cookie access, use the [browser skill](skills/browser/SKILL.md) and [cookie setup](skills/browser/docs/cookie-import.md).
+Surf uses a dedicated Chrome profile, separate from the user's main tabs. For manual login, extension setup, or existing Chrome cookie access, use the [browser skill](skills/browser/SKILL.md) and [cookie setup](skills/browser/docs/cookie-import.md).
 
 Cookie import requires explicit scope consent and an inactive, verifiably owned destination. It refreshes changed sources before startup, not on a timer. Source Chrome may remain open. Same Chrome family, OS user, and encryption metadata are required. Imports upsert unexpired cookies without propagating source deletions; disabling imports does not remove already imported cookies.
 
@@ -63,6 +63,10 @@ To set up cookie import yourself, add `cookie_source` to Surf's `config.json` (`
 - `root` is the absolute path of Chrome's user-data directory (`/Users/you/Library/Application Support/Google/Chrome` on macOS); `profile` names a profile inside it.
 - `family` is `chrome`, `chromium`, `brave` or `edge`, and must match Surf's browser.
 - `scope` holds either a domain list or `{"all_domains": true}`, not both.
+
+## Window rules
+
+Surf's windows open in the background. On Linux, match app-id / WM_CLASS `surf-agent` in your window manager to place them; `SURF_AGENT_APP_ID` changes it.
 
 ## Develop
 
