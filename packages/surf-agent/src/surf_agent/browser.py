@@ -18,8 +18,8 @@ from .runtime import SurfAgent
 @dataclass(frozen=True)
 class ProfileInfo:
     profile_dir: Path
-    patchright_bridge_port: int
-    patchright_app_id: str
+    bridge_port: int
+    app_id: str
 
 
 @dataclass(frozen=True)

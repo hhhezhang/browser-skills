@@ -159,7 +159,7 @@ Validates the Patchright dependency and a Chrome executable. Does not install Ch
 
 ### `browser.profile() -> ProfileInfo`
 
-Fields `profile_dir`, `patchright_bridge_port`, `patchright_app_id`.
+Fields `profile_dir`, `bridge_port`, `app_id`.
 
 ### `browser.open_profile(url='about:blank') -> None`
 
