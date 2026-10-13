@@ -66,7 +66,7 @@ To set up cookie import yourself, add `cookie_source` to Surf's `config.json` (`
 
 ## Window rules
 
-Surf's windows open in the background. On Linux, match app-id / WM_CLASS `surf-agent` in your window manager to place them; `SURF_AGENT_APP_ID` changes it.
+Surf's windows open in the background. On Linux, create a window rule matching app-id / WM_CLASS `surf-agent` (set `SURF_AGENT_APP_ID` to change it) to manage them.
 
 ## Develop
 
