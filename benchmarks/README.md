@@ -9,11 +9,11 @@ Benchmark infrastructure only; no changes to Surf's production lifecycle. Run fr
 ```sh
 RUN=$(mktemp -d /tmp/surf-benchmark.XXXXXX)
 export SURF_AGENT_HOME="$RUN/surf-home"
-export SURF_AGENT_PATCHRIGHT_PORT=19331  # Runner: reserve a different unused port per arm.
+export SURF_AGENT_PORT=19331  # Runner: reserve a different unused port per arm.
 uv run python benchmarks/fixture.py --info "$RUN/runner-info.json"
 ```
 
-Keep the fixture process running in a terminal. Its stdout gives the public URL; the info file also holds the private oracle bearer token. Start a separate fixture per participant: state resets by restarting. No profile/cookie import is needed or allowed. Never copy a user's profile into this isolated Surf home. All modes must use the same pacing settings; this harness does not initialize them. A separate home alone does not isolate Patchright's listening port: reserve distinct unused `SURF_AGENT_PATCHRIGHT_PORT` values per arm and pass each arm's home and port to every browser command and worker startup.
+Keep the fixture process running in a terminal. Its stdout gives the public URL; the info file also holds the private oracle bearer token. Start a separate fixture per participant: state resets by restarting. No profile/cookie import is needed or allowed. Never copy a user's profile into this isolated Surf home. All modes must use the same pacing settings; this harness does not initialize them. A separate home alone does not isolate Patchright's listening port: reserve distinct unused `SURF_AGENT_PORT` values per arm and pass each arm's home and port to every browser command and worker startup.
 
 ### Keep browser lifecycle independent of the execution mode
 
@@ -21,7 +21,7 @@ Some agent shell runners reap child processes when a command finishes. An automa
 
 ```sh
 uv run python -m surf_agent.backends.patchright.bridge \
-  --port "$SURF_AGENT_PATCHRIGHT_PORT" \
+  --port "$SURF_AGENT_PORT" \
   --profile-dir "$SURF_AGENT_HOME/profiles/chrome"
 ```
 
@@ -40,7 +40,7 @@ Give participants only their URL, mode, thread name, isolated environment, API/C
 ## Persistent session
 
 Export `BROWSER_SKILL` to the installed skill directory and keep the participant's isolated
-`SURF_AGENT_HOME` and unique `SURF_AGENT_PATCHRIGHT_PORT` in the environment, then create the
+`SURF_AGENT_HOME` and unique `SURF_AGENT_PORT` in the environment, then create the
 session once:
 
 ```sh

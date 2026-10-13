@@ -89,15 +89,12 @@ class RuntimeTests(unittest.TestCase):
                 default_patchright_profile_dir(), surf_agent_data_dir() / "profiles" / "chrome"
             )
 
-    def test_patchright_profile_open_uses_patchright_profile_dir_and_class(self):
+    def test_patchright_profile_open_uses_patchright_profile_dir_and_app_id(self):
         with (
             TemporaryDirectory() as tmp,
             patch.dict(
                 "os.environ",
-                {
-                    "SURF_AGENT_PATCHRIGHT_APP_ID": "surf-agent-test",
-                    "SURF_AGENT_PATCHRIGHT_CLASS": "surf-agent-window",
-                },
+                {"SURF_AGENT_APP_ID": "surf-agent-test"},
                 clear=True,
             ),
         ):
@@ -117,7 +114,7 @@ class RuntimeTests(unittest.TestCase):
             pops[0][0][0],
             [
                 "chrome",
-                "--class=surf-agent-window",
+                "--class=surf-agent-test",
                 f"--user-data-dir={profile}",
                 "--new-window",
                 "--name=surf-agent-test",
@@ -533,7 +530,6 @@ class RuntimeTests(unittest.TestCase):
         runtime = PatchrightRuntime(
             profile_dir=Path("/tmp/surf-patchright-test"),
             app_id="surf-agent-test",
-            window_class="surf-agent-window",
         )
         runtime.browser_or_context = context
 

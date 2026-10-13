@@ -48,7 +48,7 @@ def test_installed_skill_across_fresh_invocations(tmp_path, short_tmp_path):
         **os.environ,
         # Session sockets live under this home, so it needs a short path on macOS.
         "SURF_AGENT_HOME": str(short_tmp_path / "surf-home"),
-        "SURF_AGENT_PATCHRIGHT_PORT": str(bridge_port),
+        "SURF_AGENT_PORT": str(bridge_port),
         "PYTHONPATH": "",
     }
     workdir = tmp_path / "unrelated project"

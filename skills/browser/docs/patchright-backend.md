@@ -9,9 +9,9 @@ Install Google Chrome where Patchright's `chrome` channel finds it (its standard
 ## Runtime data
 
 - Profile: platform user data directory `profiles/chrome/`, or `$SURF_AGENT_HOME/profiles/chrome`.
-- `SURF_AGENT_PATCHRIGHT_PROFILE_DIR`: overrides the profile.
-- `SURF_AGENT_PATCHRIGHT_PORT`: bridge port, default `9346`.
-- `SURF_AGENT_PATCHRIGHT_APP_ID` or `SURF_AGENT_PATCHRIGHT_CLASS`: application/window identity.
+- `SURF_AGENT_PROFILE_DIR`: overrides the profile.
+- `SURF_AGENT_PORT`: bridge port, default `9346`.
+- `SURF_AGENT_APP_ID`: Wayland app-id and X11 WM_CLASS of Surf's Chrome windows, default `surf-agent`.
 
 Inspect actual settings with `Browser().profile()`.
 

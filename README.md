@@ -64,6 +64,10 @@ To set up cookie import yourself, add `cookie_source` to Surf's `config.json` (`
 - `family` is `chrome`, `chromium`, `brave` or `edge`, and must match Surf's browser.
 - `scope` holds either a domain list or `{"all_domains": true}`, not both.
 
+## Window rules
+
+Surf's windows open in the background. On Linux, create a window rule matching app-id / WM_CLASS `surf-agent` (set `SURF_AGENT_APP_ID` to change it) to manage them.
+
 ## Develop
 
 ```bash
