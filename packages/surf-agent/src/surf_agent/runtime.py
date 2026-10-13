@@ -42,7 +42,6 @@ class SurfAgent:
         thread: str = DEFAULT_THREAD,
         patchright_profile_dir: Path | None = None,
         patchright_app_id: str | None = None,
-        patchright_class: str | None = None,
     ) -> None:
         self.chrome_bin = (
             chrome_bin or os.environ.get("SURF_AGENT_CHROME_BIN") or find_chrome_bin()
@@ -56,18 +55,10 @@ class SurfAgent:
         )
         self.patchright_app_id = (
             patchright_app_id
-            or os.environ.get("SURF_AGENT_PATCHRIGHT_APP_ID")
-            or os.environ.get("SURF_AGENT_PATCHRIGHT_CLASS")
+            or os.environ.get("SURF_AGENT_APP_ID")
             or DEFAULT_PATCHRIGHT_APP_ID
         )
-        self.patchright_class = (
-            patchright_class
-            or os.environ.get("SURF_AGENT_PATCHRIGHT_CLASS")
-            or self.patchright_app_id
-        )
-        self.patchright_port = parse_port_env(
-            "SURF_AGENT_PATCHRIGHT_PORT", DEFAULT_PATCHRIGHT_PORT
-        )
+        self.patchright_port = parse_port_env("SURF_AGENT_PORT", DEFAULT_PATCHRIGHT_PORT)
         self.patchright_client = PatchrightBridgeClient(
             timeout_s=self.command_timeout_s,
             port=self.patchright_port,
@@ -107,7 +98,6 @@ class SurfAgent:
             url,
             profile_dir=str(self.patchright_profile_dir),
             app_id=self.patchright_app_id,
-            window_class=self.patchright_class,
         )
 
     def _patchright_startup_guard(self):
@@ -145,7 +135,7 @@ def config_file() -> Path:
 
 
 def default_patchright_profile_dir() -> Path:
-    value = os.environ.get("SURF_AGENT_PATCHRIGHT_PROFILE_DIR")
+    value = os.environ.get("SURF_AGENT_PROFILE_DIR")
     if value:
         return Path(value).expanduser()
     return surf_agent_data_dir() / "profiles" / "chrome"

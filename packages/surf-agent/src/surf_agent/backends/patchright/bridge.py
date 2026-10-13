@@ -66,11 +66,10 @@ LAUNCH_TIMEOUT_MS = 30_000
 
 
 class PatchrightRuntime:
-    def __init__(self, *, profile_dir: Path, headless: bool = False, app_id: str = DEFAULT_PATCHRIGHT_APP_ID, window_class: str | None = None) -> None:
+    def __init__(self, *, profile_dir: Path, headless: bool = False, app_id: str = DEFAULT_PATCHRIGHT_APP_ID) -> None:
         self.profile_dir = profile_dir
         self.headless = headless
         self.app_id = app_id
-        self.window_class = window_class or app_id
         self.manager: Any | None = None
         self.browser_or_context: Any | None = None
         self.pages: dict[str, PageSlot] = {}
@@ -131,7 +130,8 @@ class PatchrightRuntime:
         if self.browser_or_context is not None:
             return
         self.profile_dir.mkdir(parents=True, exist_ok=True)
-        launch_args = [f"--class={self.window_class}", f"--name={self.app_id}"] if self.app_id or self.window_class else []
+        # One identity for both flags: window rules match it as the Wayland app-id or X11 WM_CLASS.
+        launch_args = [f"--class={self.app_id}", f"--name={self.app_id}"]
         self.manager = async_playwright()
         if hasattr(self.manager, "__aenter__"):
             playwright = await self.manager.__aenter__()
@@ -725,19 +725,18 @@ class PatchrightHTTPServer(HTTPServer):
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=int(os.environ.get("SURF_AGENT_PATCHRIGHT_PORT", "9346")))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("SURF_AGENT_PORT", "9346")))
     parser.add_argument(
         "--profile-dir",
-        default=os.environ.get("SURF_AGENT_PATCHRIGHT_PROFILE_DIR") or "",
+        default=os.environ.get("SURF_AGENT_PROFILE_DIR") or "",
     )
     parser.add_argument("--headless", action="store_true")
-    parser.add_argument("--app-id", default=os.environ.get("SURF_AGENT_PATCHRIGHT_APP_ID") or os.environ.get("SURF_AGENT_PATCHRIGHT_CLASS") or DEFAULT_PATCHRIGHT_APP_ID)
-    parser.add_argument("--class", dest="window_class", default=os.environ.get("SURF_AGENT_PATCHRIGHT_CLASS") or os.environ.get("SURF_AGENT_PATCHRIGHT_APP_ID") or DEFAULT_PATCHRIGHT_APP_ID)
+    parser.add_argument("--app-id", default=os.environ.get("SURF_AGENT_APP_ID") or DEFAULT_PATCHRIGHT_APP_ID)
     args = parser.parse_args(argv)
     home = os.environ.get("SURF_AGENT_HOME")
     default_profile_dir = (Path(home).expanduser() if home else Path(PlatformDirs("surf-agent", appauthor=False).user_data_dir)) / "profiles" / "chrome"
     profile_dir = Path(args.profile_dir).expanduser() if args.profile_dir else default_profile_dir
-    RequestHandler.runtime = PatchrightRuntime(profile_dir=profile_dir, headless=args.headless, app_id=args.app_id, window_class=args.window_class)
+    RequestHandler.runtime = PatchrightRuntime(profile_dir=profile_dir, headless=args.headless, app_id=args.app_id)
     # Playwright/Patchright sync objects are bound to the thread that created them.
     # Use a single-threaded HTTP server so every browser call runs on one thread.
     server = PatchrightHTTPServer(("127.0.0.1", args.port), RequestHandler)

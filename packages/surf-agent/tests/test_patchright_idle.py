@@ -66,7 +66,6 @@ def test_patchright_launch_is_windowless_with_patchrights_own_flags(monkeypatch,
     runtime = PatchrightRuntime(
         profile_dir=tmp_path / "chrome",
         app_id="surf-agent",
-        window_class="Surf Agent",
     )
     try:
         runtime.start()
@@ -91,7 +90,7 @@ def test_patchright_launch_is_windowless_with_patchrights_own_flags(monkeypatch,
             "--disable-field-trial-config",
             f"--user-data-dir={tmp_path / 'chrome'}",
             "--remote-debugging-pipe",
-            "--class=Surf Agent",
+            "--class=surf-agent",
             "--name=surf-agent",
             "--no-startup-window",
         ],

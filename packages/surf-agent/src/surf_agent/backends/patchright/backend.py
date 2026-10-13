@@ -78,7 +78,7 @@ class PatchrightBackend(LocalBridgeBackend):
             raise SurfAgentError("Patchright bridge close-matching returned invalid JSON")
         return 1 if result["failed"] else 0
 
-    def profile_open(self, url: str, *, profile_dir: str, app_id: str, window_class: str) -> int:
+    def profile_open(self, url: str, *, profile_dir: str, app_id: str) -> int:
         if browser_executable_family(self.agent.chrome_bin) != "chrome":
             raise SurfAgentError("Patchright profile open requires a provable Google Chrome executable")
         with self.agent._patchright_startup_guard():
@@ -88,7 +88,7 @@ class PatchrightBackend(LocalBridgeBackend):
                 raise SurfAgentError("could not find Chrome executable for profile open; set SURF_AGENT_CHROME_BIN")
             profile_path = Path(profile_dir)
             profile_path.mkdir(parents=True, exist_ok=True)
-            command = [*shlex.split(self.agent.chrome_bin), f"--class={window_class}", f"--user-data-dir={profile_path}", "--new-window", f"--name={app_id}", url]
+            command = [*shlex.split(self.agent.chrome_bin), f"--class={app_id}", f"--user-data-dir={profile_path}", "--new-window", f"--name={app_id}", url]
             subprocess.Popen(
                 command,
                 stdout=subprocess.DEVNULL,
