@@ -285,6 +285,9 @@ class LocalBridgeBackend:
     def click(self, target: str) -> str:
         return self._call("click", {"uid": target})
 
+    def click_at(self, x: float, y: float) -> str:
+        return self._call("click-at", {"x": x, "y": y})
+
     def fill(self, target: str, text: str) -> str:
         return self._call("fill", {"uid": target, "text": text})
 

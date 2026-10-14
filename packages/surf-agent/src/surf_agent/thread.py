@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import sys
 from collections.abc import Sequence
@@ -56,6 +57,18 @@ class Thread:
 
     def click(self, target: str) -> str:
         return self._agent.browser_backend.click(target)
+
+    def click_at(self, x: float, y: float) -> str:
+        """Click viewport point (x, y) in CSS pixels, the coordinates ``screenshot()`` images use.
+
+        Reaches page content no ref or selector can, such as a closed shadow root.
+        """
+        for label, value in (("x", x), ("y", y)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"click_at {label} must be a number")
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"click_at {label} must be a finite, nonnegative number")
+        return self._agent.browser_backend.click_at(x, y)
 
     def fill(self, target: str, text: str) -> str:
         return self._agent.browser_backend.fill(target, text)

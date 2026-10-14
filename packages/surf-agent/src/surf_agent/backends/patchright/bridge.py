@@ -286,6 +286,16 @@ class PatchrightRuntime:
             locator = await self._target_locator(slot, target)
             await self._act(target, locator, lambda: locator.click(timeout=ACTION_TIMEOUT_MS), editable=False)
             return "clicked\n"
+        if name == "click-at":
+            x, y = float(args["x"]), float(args["y"])
+            width, height = await self._maybe_await(slot.page.evaluate("() => [innerWidth, innerHeight]"))
+            # A point off the viewport hits nothing, and the mouse API would not say so.
+            if not (0 <= x < width and 0 <= y < height):
+                raise BridgeCodedError(
+                    ErrorCode.NOT_VISIBLE, f"point ({x:g}, {y:g}) is outside the {width}x{height} viewport"
+                )
+            await self._maybe_await(slot.page.mouse.click(x, y))
+            return "clicked\n"
         if name == "fill":
             target = str(args["uid"])
             locator = await self._target_locator(slot, target)
@@ -332,7 +342,8 @@ class PatchrightRuntime:
         if name == "screenshot":
             path = str(args["path"])
             full_page = args.get("fullPage") is True
-            await self._maybe_await(slot.page.screenshot(path=path, full_page=full_page))
+            # CSS scale keeps image pixels equal to click_at coordinates on scaled (HiDPI) displays.
+            await self._maybe_await(slot.page.screenshot(path=path, full_page=full_page, scale="css"))
             return f"screenshot: {path}\n"
         if name == "eval":
             result = await self._maybe_await(slot.page.evaluate(str(args.get("code") or "")))
