@@ -10,7 +10,7 @@ Work on the task's existing thread and interpreter mode from the [browser skill 
 
 Done when page state shows the signed-in account: its name, a sign-out control, or the page the login was for.
 
-1. Click the observed sign-in field, then emit a snapshot, capture the viewport and view the image. If the click fails with `intercepted` by the field's own label, click that label instead: it focuses the field.
+1. Click the observed sign-in field, then emit a snapshot, capture the viewport and view the image. If the click fails with `intercepted` by the field's own label, click that label instead: it focuses the field. When the image shows no panel and the snapshot no `1Password menu is available` status, follow the fallback.
 
    ```python
    thread.click("@e7")  # sign-in field ref from the observed snapshot
@@ -18,20 +18,21 @@ Done when page state shows the signed-in account: its name, a sign-out control, 
    thread.screenshot("/tmp/surf-login.png")
    ```
 
-2. Find the task's account in a panel by title and email, preferring the passkey popup when both show. If several entries could match and the task doesn't say which, ask the user, then restart at step 1. Click the entry's center in the image file's pixels: the file is the viewport's size (`thread.evaluate("[innerWidth, innerHeight]")`), so if your view of it is smaller, scale the point up by the ratio. One click can fill and submit the form, or finish a passkey sign-in.
+2. Find the task's account in a panel by title and email, preferring the passkey popup when both show. No entry for the task's account: fallback. If several entries could match and the task doesn't say which, ask the user, then restart at step 1. Click the entry's center in the image file's pixels: the file is the viewport's size (`thread.evaluate("[innerWidth, innerHeight]")`), so if your view of it is smaller, scale the point up by the ratio. One click can fill and submit the form, or finish a passkey sign-in.
 
    ```python
    thread.click_at(1158, 449)  # entry center from the screenshot
    thread.emit(thread.snapshot())
-   thread.screenshot("/tmp/surf-login.png")
    ```
 
-3. Decide from the page; if it is still loading, `wait()` for the next page or capture again before deciding:
+3. Decide from the snapshot first; while the page is still loading, `wait()` for the next page or emit a new snapshot:
    - Signed in: done.
-   - A panel shows: step 2. The same panel still showing after two clicks on it: fallback.
    - A new sign-in field, such as the password step: step 1.
-   - A control the login needs, such as Next or the site's own "Sign in with passkey" button: click it by ref, capture the viewport, and repeat step 3.
-   - No panel and no `1Password menu is available` status after step 1, no entry for the task's account, an unlock prompt, a captcha, a one-time code, or an error: fallback.
+   - A captcha, a one-time code, or an error: fallback.
+   - Otherwise capture the viewport and view the image, then:
+     - A panel shows: step 2. The same panel still showing after two clicks on it: fallback.
+     - No panel, but a control the login needs, such as Next or the site's own "Sign in with passkey" button: click it by ref, emit a snapshot, and repeat step 3.
+     - Neither: fallback.
 
 ## Without image viewing
 
