@@ -48,7 +48,7 @@ Rejected (weighted scores, criteria: correct screenshots 35, no silent failure 2
 
 - [x] Reproduced and chose the signal (evidence above)
 - [x] Steps 1–2 (`64de425`): reset in `PatchrightRuntime._start_async` via `saved_zoom.clear_saved_zoom`, guard `_require_unzoomed` before `screenshot`, docs. Unit suite 238 passed; live Patchright 69 passed (Xvfb); ad-hoc live: 150% saved profile → prefs cleared, scrolled screenshot 780×493 with fixed boxes visible.
-- [x] Step 3: independent tests `5174cd4` (7 live: saved default/per-site zoom reset, other prefs kept, mid-session zoom in/out × viewport/full-page raises `page_zoomed`), `b32742d` (frozen page). Each failed on the code before its fix.
+- [x] Step 3: independent tests `5174cd4` (7 live: saved default/per-site zoom reset, other prefs kept, mid-session zoom raises `page_zoomed`, later paired to zoomed-in viewport and zoomed-out full-page: each case alone fails a guard that ignores zoom-out or full-page), `b32742d` (frozen page). Each failed on the code before its fix.
 - [x] Step 4: independent review; fixes in `f088c9c`; pins `471429f`, `398205c`. Unit 238 passed, live Patchright 77 passed (Xvfb).
 
 ## Surprises & Discoveries

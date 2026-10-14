@@ -230,10 +230,14 @@ def test_zoom_reset_keeps_other_saved_preferences(launch, site):
     assert page_value(runtime, "() => getComputedStyle(document.body).fontSize") == "20px"
 
 
-@pytest.mark.parametrize("full_page", [False, True], ids=["viewport", "full-page"])
+# Paired, not crossed: one case per risk. Zooming out must count too (a `zoom > 1`
+# check would miss it), and full-page shots must be guarded like viewport ones.
 @pytest.mark.parametrize(
-    ("zoom_label", "factor"),
-    [pytest.param("150%", 1.5, id="zoomed-in"), pytest.param("90%", 0.9, id="zoomed-out")],
+    ("zoom_label", "factor", "full_page"),
+    [
+        pytest.param("150%", 1.5, False, id="zoomed-in-viewport"),
+        pytest.param("90%", 0.9, True, id="zoomed-out-full-page"),
+    ],
 )
 def test_screenshot_of_page_zoomed_mid_session_fails_without_writing_an_image(
     launch, site, tmp_path, zoom_label, factor, full_page
