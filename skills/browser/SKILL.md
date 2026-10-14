@@ -138,11 +138,11 @@ For one method's contract, `Browser` administration and error codes, grep [Pytho
 
 ## Login and human unblock
 
-Asking the user breaks their concentration, so resolve login yourself when the task allows. When the task implies the user is signed in or authorizes logging in, such as acting on their own account, log in without asking through [1Password](docs/1password-autofill.md). For first-time configuration, read [1Password setup](docs/1password-setup.md). Ask before signing out of or switching an account the user is already signed in to.
+Asking the user breaks their concentration, so resolve login yourself when the task allows. When the task implies the user is signed in or authorizes logging in, such as acting on their own account, log in without asking through [1Password](docs/1password-autofill.md). For first-time configuration, read [1Password setup](docs/1password-setup.md).
 
 When 1Password doesn't get you in and the user's normal Chrome already has the site's login, offer to import that site's cookies; on consent, follow [import for one site](docs/cookie-import.md#import-for-one-site). Never import without asking. For other cookie configuration, read [cookie import](docs/cookie-import.md) first.
 
-When blocked by a step only the user can take, such as unlocking 1Password, a captcha, a one-time code, or a choice the task doesn't settle, finish the work that doesn't depend on it, then ask once for everything you need: the user completes the blocker in the Surf Agent window and confirms when done. Preserve the page and wait for that confirmation, then inspect it using the same thread. Reopening the URL may destroy completed human work.
+When blocked by a step only the user can take, such as unlocking 1Password, a captcha, a one-time code, or a choice the task doesn't settle, ask once for everything you need: the user completes the blocker in the Surf Agent window and confirms when done. Preserve the page and wait for that confirmation, then inspect it using the same thread. Reopening the URL may destroy completed human work.
 
 For manual login, close Surf automation windows and call `Browser().open_profile(url)`. Close manual Chrome before resuming automation. Bring a window forward with `Thread(name).focus()` only when requested.
 
