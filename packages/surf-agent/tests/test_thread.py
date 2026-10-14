@@ -614,3 +614,61 @@ def test_responses_list_entries_and_response_body_refuses_omitted_bodies(monkeyp
     assert thread.response_body("r1") == {"a": 1}
     with pytest.raises(SurfAgentError, match="r2.*too_large"):
         thread.response_body("r2")
+
+
+@dataclass
+class ClickAtBackend:
+    points: list[tuple[object, object]]
+
+    def click_at(self, x: float, y: float) -> str:
+        self.points.append((x, y))
+        return "clicked\n"
+
+
+def test_click_at_passes_screenshot_point_through_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    class StubClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict[str, object]]] = []
+
+        def call_tool(self, name: str, args: dict[str, object], **_transport: object) -> str:
+            self.calls.append((name, args))
+            return f"{name} ok\n"
+
+    class Agent:
+        thread = "research"
+
+    client = StubClient()
+    agent = Agent()
+    agent.stub_client = client
+    backend = LocalBridgeBackend(agent, client=client, welcome_url=lambda: "about:blank")
+    backend.client_attr = "stub_client"
+    backend.display_name = "Stub"
+    agent.browser_backend = backend
+    monkeypatch.setattr("surf_agent.thread._create_agent", lambda _name: agent)
+
+    assert Thread("research").click_at(412.5, 0) == "click-at ok\n"
+
+    assert [(name, args["x"], args["y"]) for name, args in client.calls] == [("click-at", 412.5, 0)]
+
+
+@pytest.mark.parametrize(
+    ("x", "y"),
+    [
+        (-1, 10),
+        (10, -0.5),
+        ("10", 10),
+        (10, None),
+        (float("nan"), 10),
+    ],
+)
+def test_click_at_rejects_negative_or_non_numeric_point_before_the_browser(
+    monkeypatch: pytest.MonkeyPatch, x: object, y: object
+) -> None:
+    backend = ClickAtBackend([])
+    monkeypatch.setattr("surf_agent.thread._create_agent", lambda _name: FakeAgent(backend))
+
+    # The contract names no exception type; any deliberate input error is acceptable.
+    with pytest.raises((TypeError, ValueError, SurfAgentError)):
+        Thread("research").click_at(x, y)  # type: ignore[arg-type]
+
+    assert backend.points == []
