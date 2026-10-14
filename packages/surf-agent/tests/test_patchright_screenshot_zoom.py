@@ -4,6 +4,8 @@ The Surf profile is a real Chrome profile, so zoom saved in it persists across
 sessions. Under zoom a screenshot shows only part of the viewport, or nothing
 once the page is scrolled. Surf resets saved zoom when it launches Chrome, and
 refuses a screenshot of a page still zoomed when the shot runs.
+
+Checking zoom asks the page's renderer, so a frozen page must not hang the shot.
 """
 
 from __future__ import annotations
@@ -11,8 +13,11 @@ from __future__ import annotations
 import json
 import math
 import os
+import signal
 import struct
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -48,12 +53,25 @@ ZOOM_SETTINGS_URL = "chrome://settings/appearance"
 ZOOM_SETTING_SELECTOR = "#zoomLevel"
 ZOOM_APPLIED_TIMEOUT_S = 5.0
 
+# Loads, then never yields again: its renderer answers no CDP request.
+FROZEN_PAGE = """<title>Frozen</title>
+<body>Frozen
+  <script>addEventListener('load', () => setTimeout(() => { while (true) {} }, 200))</script>
+</body>"""
+FREEZE_SETTLE_S = 1.0
+# Another site, so Chrome renders it in a process the frozen page does not block.
+UNFROZEN_URL = "data:text/html,<title>Unfrozen</title>"
+# Surf's action timeout is 5s; before the fix Patchright's own 30s applied, and
+# one version hung for good. Generous slack, still well short of either.
+FROZEN_SCREENSHOT_DEADLINE_S = 15.0
+
 
 @pytest.fixture
 def site(tmp_path):
     root = tmp_path / "site"
     root.mkdir()
     (root / "tall.html").write_text(TALL_PAGE)
+    (root / "frozen.html").write_text(FROZEN_PAGE)
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(root)))
     worker = Thread(target=server.serve_forever, daemon=True)
     worker.start()
@@ -127,6 +145,25 @@ def red_box_in_image(runtime: PatchrightRuntime, image_url: str) -> dict:
             return {{left, top, right, bottom}};
         }}""",
     )
+
+
+@contextmanager
+def fails_if_still_running_after(seconds: float, what: str) -> Iterator[None]:
+    """Fail the test, instead of hanging pytest, when the block outlives *seconds*.
+
+    pytest-timeout is not a dependency; SIGALRM interrupts the event loop's wait.
+    """
+
+    def hung(_signum, _frame):
+        pytest.fail(f"{what} still running after {seconds:g}s", pytrace=False)
+
+    previous = signal.signal(signal.SIGALRM, hung)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
 
 
 def zoom_like_a_human(runtime: PatchrightRuntime, zoom_label: str) -> None:
@@ -214,3 +251,20 @@ def test_screenshot_of_page_zoomed_mid_session_fails_without_writing_an_image(
     # The string, not ErrorCode.PAGE_ZOOMED: fail on behaviour before that member exists.
     assert raised.value.code == "page_zoomed"
     assert not shot.exists()
+
+
+def test_screenshot_of_frozen_page_times_out_and_leaves_the_bridge_usable(launch, site, tmp_path):
+    url, _root = site
+    runtime = launch()
+    runtime.call("open", {"thread": "frozen", "url": f"{url}/frozen.html"})
+    time.sleep(FREEZE_SETTLE_S)
+    shot = tmp_path / "shot.png"
+
+    with fails_if_still_running_after(FROZEN_SCREENSHOT_DEADLINE_S, "screenshot of a frozen page"):
+        with pytest.raises(bridge.BridgeCodedError) as raised:
+            runtime.call("screenshot", {"thread": "frozen", "path": str(shot)})
+
+    assert raised.value.code == "action_timeout"
+    with fails_if_still_running_after(FROZEN_SCREENSHOT_DEADLINE_S, "another thread after the frozen screenshot"):
+        runtime.call("open", {"thread": "unfrozen", "url": UNFROZEN_URL})
+        assert page_value(runtime, "() => document.title", thread="unfrozen") == "Unfrozen"
