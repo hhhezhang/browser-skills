@@ -2,46 +2,40 @@
 
 Use this when logging in with the configured 1Password extension. For initial configuration, read [1Password setup](1password-setup.md).
 
-1Password draws two **panels** inside the page: the inline menu under a focused sign-in field, and the "Sign in with a passkey" popup at the top right of the viewport. Both list saved entries by title and email. Snapshots show only a status line for the inline menu, `1Password menu is available. Press down arrow to select.`, never the entries, and refs can't reach either panel; screenshots show both, so pick entries by position with `click_at`. A panel can appear at any point: on page load, when a field gets focus, or after a click, such as a selected entry leading to a passkey popup on the next page.
+1Password draws two **panels** inside the page: the inline menu under a focused sign-in field and the "Sign in with a passkey" popup at the top right. Both list saved entries by title and email. Snapshots show only the inline menu's status, `1Password menu is available. Press down arrow to select.`; screenshots show both panels, so pick entries with `click_at`.
 
-Work on the task's existing thread and interpreter mode from the [browser skill workflow](../SKILL.md); these steps assume `thread` already shows the login page with an emitted snapshot (in a fresh script, rebuild it as `Thread(<task thread name>)`). Keep passwords, cookies, and other secrets out of printed output.
+Work on the task's existing thread from the [browser skill workflow](../SKILL.md). Keep passwords, cookies, and other secrets out of printed output.
 
 ## Login loop
 
-Done when page state shows the signed-in account: its name, a sign-out control, or the page the login was for.
+Click the sign-in field (if the click is `intercepted` by the field's own label, click the label). Then repeat until the page shows the signed-in account: its name, a sign-out control, or the page the login was for.
 
-A click here starts work that outlives the call: a fill, a submit, a passkey check, a panel opening. After each click, let the page **settle** before reading it: `thread.wait(url=...)` when you know where the login lands, otherwise `thread.sleep()`: 1500 ms after a field click, 3000 ms after any other. Reading too early shows the old page, which invites a second submit.
+1. **Settle**: a click starts fills, submits and panels that finish later, and reading early invites a second submit. `thread.wait(url=...)` when you know where the login lands, else `thread.sleep(1500)` after a field click and `thread.sleep(3000)` after any other.
+2. Emit a snapshot. Signed in: done. A captcha, one-time code or error: fallback.
+3. Capture the viewport, view it, and click:
+   - a panel entry for the task's account, preferring the passkey popup, with `click_at` at its center;
+   - else a control that advances the login (a new sign-in field, Next, the site's "Sign in with passkey"), by ref;
+   - else: fallback.
 
-1. Click the observed sign-in field, then emit a snapshot, capture the viewport and view the image. If the click fails with `intercepted` by the field's own label, click that label instead: it focuses the field. When the image shows no panel and the snapshot no `1Password menu is available` status, follow the fallback.
+```python
+thread.click("@e7")  # sign-in field from the snapshot
+thread.sleep(1500)
+thread.emit(thread.snapshot())
+thread.screenshot("/tmp/surf-login.png")
+# view the image, then:
+thread.click_at(1158, 449)  # entry center
+thread.sleep(3000)
+thread.emit(thread.snapshot())
+```
 
-   ```python
-   thread.click("@e7")  # sign-in field ref from the observed snapshot
-   thread.sleep(1500)  # settle
-   thread.emit(thread.snapshot())
-   thread.screenshot("/tmp/surf-login.png")
-   ```
-
-2. Find the task's account in a panel by title and email, preferring the passkey popup when both show. No entry for the task's account: fallback. If several entries could match and the task doesn't say which, ask the user, then restart at step 1. Click the entry's center in the image file's pixels: the file is the viewport's size (`thread.evaluate("[innerWidth, innerHeight]")`), so if your view of it is smaller, scale the point up by the ratio. One click can fill and submit the form, or finish a passkey sign-in.
-
-   ```python
-   thread.click_at(1158, 449)  # entry center from the screenshot
-   thread.sleep(3000)  # settle
-   thread.emit(thread.snapshot())
-   ```
-
-3. Decide from the snapshot first; while the page is still loading, settle again and emit a new snapshot:
-   - Signed in: done.
-   - A new sign-in field, such as the password step: step 1.
-   - A captcha, a one-time code, or an error: fallback.
-   - Otherwise capture the viewport and view the image, then:
-     - A panel shows: step 2. The same panel still showing after two clicks on it: fallback.
-     - No panel, but a control the login needs, such as Next or the site's own "Sign in with passkey" button: click it by ref, settle, emit a snapshot, and repeat step 3.
-     - Neither: fallback.
+- Several entries could match and the task doesn't say which: ask the user.
+- Same panel still showing after two clicks on it: fallback.
+- Coordinates are in the image file's pixels, which equal the viewport (`thread.evaluate("[innerWidth, innerHeight]")`); if your view of the image is smaller, scale the point up.
 
 ## Without image viewing
 
-Without image viewing you can't see either panel, so you can't tell how many entries exist or which one comes first; take this path only when any saved login suits the task. Do step 1, and once its snapshot shows the `1Password menu is available` status, `thread.press("ArrowDown")` then `thread.press("Enter")` fills the first entry. Continue at step 3, reading snapshots instead of screenshots, and confirm which account signed in. Keys never reach the passkey popup: when the login needs it, follow the fallback and ask the user to pick the entry.
+Use this only when any saved login suits the task: the status never names the entry. After the field click, once the status shows, `thread.press("ArrowDown")` then `thread.press("Enter")` fills the first entry; continue the loop from snapshots. Keys never reach the passkey popup: when the login needs it, fall back.
 
-## Fallback (locked or no match)
+## Fallback
 
 Follow [Login and human unblock](../SKILL.md#login-and-human-unblock). When 1Password is locked, ask the user to unlock the desktop app, then restart the loop.
