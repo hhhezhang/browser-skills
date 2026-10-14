@@ -70,7 +70,10 @@ def surf_error_summary(error: SurfAgentError) -> str:
     code = f" [{error.code}]" if error.code else ""
     lines = [f"{type(error).__name__}{code}: {error}\n"]
     cause = error.__cause__
-    while cause is not None:
+    seen = {id(error)}
+    # A chain can loop back on itself; the traceback module guards the same way.
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
         lines.append("Caused by: " + "".join(traceback.format_exception_only(cause)))
         cause = cause.__cause__
     return "".join(lines)

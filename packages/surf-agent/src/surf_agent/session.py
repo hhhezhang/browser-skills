@@ -1203,7 +1203,9 @@ def _run_cell_request(
                     summary = surf_error_summary(error)
                 else:
                     traceback.print_exc()
-                    summary = "".join(traceback.format_exception_only(error))
+                    # Not format_exception_only: for a SyntaxError it leads with
+                    # the location lines, not the error.
+                    summary = ": ".join(filter(None, (type(error).__name__, str(error))))
                 # The first line keeps the name and code; messages can carry
                 # multi-line call logs whose last line says neither.
                 detail = summary.splitlines()[0]
