@@ -1,49 +1,24 @@
 # 1Password autofill
 
-Use this when filling a login form with the configured 1Password extension. For initial configuration, read [1Password setup](1password-setup.md).
+Use this when logging in with the configured 1Password extension. For initial configuration, read [1Password setup](1password-setup.md). Keep passwords, cookies, and other secrets out of printed output.
 
-Pre-condition: 1Password desktop app unlocked.
+1Password shows two panels inside the page: the inline menu under a focused sign-in field, and the "Sign in with a passkey" popup. Snapshots don't list their entries and refs can't reach them, but screenshots show both, so select entries with `click_at`.
 
-## Automated fill workflow
+## Sign in
 
-1Password inline suggestions may not appear as clickable elements in snapshots (shadow DOM, ARIA live regions), so drive them with the keyboard. Work on the task's existing thread and interpreter mode from the [browser skill workflow](../SKILL.md); these steps assume `thread` already shows the login page with an emitted snapshot (in a fresh script, rebuild it as `Thread(<task thread name>)`).
+Click the sign-in field, or its label if the label covers it; the click brings up the 1Password menu. The snapshot then shows the status `1Password menu is available`; without it, 1Password isn't available on this page, so skip the screenshot and follow [Login and human unblock](../SKILL.md#login-and-human-unblock). Otherwise take a screenshot, look for the menu or the passkey popup, and `click_at` the entry for the task's account, preferring the passkey popup when both show. Selecting an entry starts a fill, a submit or a passkey check that finishes later, so wait or poll until the page settles, then check the snapshot. Signed in: done. Otherwise clear the login steps the snapshot shows, such as a password field or a Next button. Take another screenshot only when none remain: the next step is then likely a passkey popup, which only a screenshot shows.
 
-1. Click the observed username field and emit a snapshot:
+```python
+thread.click("@e7")  # sign-in field from the snapshot
+thread.emit(thread.snapshot())  # look for the 1Password menu status
+thread.screenshot("/tmp/surf-login.png")
+# view the screenshot, then click the entry for the task's account
+thread.click_at(1158, 449)
+thread.sleep(3000)
+thread.emit(thread.snapshot())  # signed in? else clear visible steps, then screenshot
+```
 
-   ```python
-   thread.click("@e7")  # username field ref from the observed snapshot
-   thread.emit(thread.snapshot())
-   ```
-
-2. Look for the status `1Password menu is available. Press down arrow to select.` Once it appears, batch the keyboard selection:
-
-   ```python
-   thread.press("ArrowDown")
-   thread.press("Enter")
-   thread.emit(thread.snapshot())
-   ```
-
-3. Inspect the resulting page before submitting anything else: 1Password may already have submitted the form. Click the observed login button only if still required. Confirm login from page state, not merely the absence of a form. Keep passwords, cookies, and other secrets out of printed output.
-
-## Passkey sign-in
-
-When the page starts a passkey request, 1Password opens a "Sign in with a passkey" popup listing matching entries. Some sites start it as soon as the sign-in field gets focus, before any passkey button; when it shows, prefer it over the keyboard fill above. Snapshots don't show it and keys don't reach it, but screenshots do, so select the entry by position:
-
-1. Capture the viewport and view the image:
-
-   ```python
-   thread.screenshot("/tmp/surf-passkey.png")
-   ```
-
-2. Find the entry for the task's account. If several entries could match and the task doesn't say which, ask the user. Click the entry's center in the image's own pixels; if your image view is downscaled, scale the point back to the file's size first:
-
-   ```python
-   thread.click_at(412, 286)  # entry center from the screenshot
-   thread.emit(thread.snapshot())
-   ```
-
-3. Confirm login from page state, as in step 3 above.
-
-## Fallback (locked or no match)
-
-When the snapshot doesn't show the "1Password menu is available" status, fall back to [Login and human unblock](../SKILL.md#login-and-human-unblock).
+- If several entries could match and the task doesn't say which, ask the user.
+- Coordinates are in the screenshot file's pixels; if your view of the image is downscaled, scale the point back up.
+- Without image viewing, `ArrowDown` then `Enter` in the inline menu fills its first entry; use this only when any saved login suits the task.
+- If no panel appears, 1Password is locked, or the account has no entry, follow [Login and human unblock](../SKILL.md#login-and-human-unblock).

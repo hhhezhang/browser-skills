@@ -42,7 +42,7 @@ Run this Python through the launcher. It opens the Surf Chrome profile with full
 ## 3. Verify
 
 - **Manual:** in that window, the 1Password extension icon shows the vault. If it says "Not connected," check that the manifest symlink is in place and the desktop app is running. Close manual Chrome before restarting automation.
-- **Automation:** the manual check does not prove automated fill. On a real login page, follow [autofill](1password-autofill.md) until a snapshot shows `1Password menu is available`; that status is the completion check for setup.
+- **Automation:** the manual check does not prove automated fill. On a real login page, follow [autofill](1password-autofill.md) until the 1Password menu appears; that is the completion check for setup.
 
 ## 4. Pre-unlock habit
 
