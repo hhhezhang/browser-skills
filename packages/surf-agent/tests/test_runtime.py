@@ -481,8 +481,8 @@ class RuntimeTests(unittest.TestCase):
             def close(self):
                 self.closed = True
 
-            def screenshot(self, path, full_page=False):
-                self.screenshot_calls.append({"path": path, "full_page": full_page})
+            def screenshot(self, path, full_page=False, scale="device"):
+                self.screenshot_calls.append({"path": path, "full_page": full_page, "scale": scale})
 
             def bring_to_front(self):
                 self.focused = True
@@ -575,7 +575,7 @@ class RuntimeTests(unittest.TestCase):
         )
         self.assertEqual(
             runtime.pages["thread"].page.screenshot_calls[-1],
-            {"path": "/tmp/viewport.png", "full_page": False},
+            {"path": "/tmp/viewport.png", "full_page": False, "scale": "css"},
         )
         self.assertEqual(
             runtime.call(
@@ -586,7 +586,7 @@ class RuntimeTests(unittest.TestCase):
         )
         self.assertEqual(
             runtime.pages["thread"].page.screenshot_calls[-1],
-            {"path": "/tmp/full.png", "full_page": True},
+            {"path": "/tmp/full.png", "full_page": True, "scale": "css"},
         )
         self.assertEqual(runtime.call("text", {"thread": "thread"}), "Body text\n")
 
@@ -687,7 +687,7 @@ class RuntimeTests(unittest.TestCase):
             def is_closed(self):
                 return False
 
-            def screenshot(self, path, full_page=False):
+            def screenshot(self, path, full_page=False, scale="device"):
                 self.screenshot_calls.append({"path": path, "full_page": full_page})
 
         page = FakePage()

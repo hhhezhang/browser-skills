@@ -28,6 +28,10 @@ Checks without opening a window or starting a bridge. An unavailable bridge retu
 
 Action output. `target` is a snapshot ref such as `@e12` or a CSS selector; see Targets above.
 
+### `thread.click_at(x, y) -> str`
+
+Clicks the viewport point (`x`, `y`) in CSS pixels, the same space as a viewport `screenshot()` image, so a point read off that image passes through unchanged. A full-page image is offset by the scroll position; read points from a viewport shot. Use it only for page content no ref or selector reaches, such as an extension popup inside a closed shadow root. A point outside the viewport raises code `not_visible`; a negative or non-numeric coordinate raises before the browser is touched. Action output.
+
 ### `thread.fill(target, text) -> str`
 
 Replaces the field's value; on a `<select>`, picks the option whose value or visible label equals `text`. Action output. `target` is a snapshot ref such as `@e12` or a CSS selector; see Targets above.
@@ -66,7 +70,7 @@ Visible text: the whole body, or one region by snapshot ref or CSS selector (`"@
 
 ### `thread.screenshot(path, *, full_page=False) -> str`
 
-Saves a viewport or full-page image; returns backend output.
+Saves a viewport or full-page image in CSS pixels, not device pixels, so on a scaled display image coordinates still match `click_at`; returns backend output.
 
 ### `thread.evaluate(code) -> Any`
 
@@ -204,6 +208,7 @@ Closes remembered pages whose thread names match the glob.
 - `stale_ref`: Ref is not in the current page. Take a new snapshot and use its refs.
 - `not_found`: Selector matches nothing, or a `response_body` key was cleared by `open()` or evicted. Snapshot and pick a real target, or list `responses()` again.
 - `not_visible`, `not_enabled`, `not_editable`: Element exists but cannot take the action. Reveal it, wait for it, or target the real control.
+  From `click_at`, `not_visible` means the point lies outside the viewport; read it again from a fresh viewport screenshot.
 - `intercepted`: Another element covers the target; the message names it (often a cookie banner or modal). Dismiss it first.
 - `action_timeout`: Element looked actionable but the action did not finish. Snapshot before retrying.
 - `wait_timeout`: A `wait()` condition never held; the message shows what the page showed.

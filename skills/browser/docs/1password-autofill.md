@@ -25,6 +25,25 @@ Pre-condition: 1Password desktop app unlocked.
 
 3. Inspect the resulting page before submitting anything else: 1Password may already have submitted the form. Click the observed login button only if still required. Confirm login from page state, not merely the absence of a form. Keep passwords, cookies, and other secrets out of printed output.
 
+## Passkey sign-in
+
+When the page starts a passkey request, 1Password opens a "Sign in with a passkey" popup listing matching entries. Some sites start it as soon as the sign-in field gets focus, before any passkey button; when it shows, prefer it over the keyboard fill above. Snapshots don't show it and keys don't reach it, but screenshots do, so select the entry by position:
+
+1. Capture the viewport and view the image:
+
+   ```python
+   thread.screenshot("/tmp/surf-passkey.png")
+   ```
+
+2. Find the entry for the task's account. If several entries could match and the task doesn't say which, ask the user. Click the entry's center in the image's own pixels; if your image view is downscaled, scale the point back to the file's size first:
+
+   ```python
+   thread.click_at(412, 286)  # entry center from the screenshot
+   thread.emit(thread.snapshot())
+   ```
+
+3. Confirm login from page state, as in step 3 above.
+
 ## Fallback (locked or no match)
 
 When the snapshot doesn't show the "1Password menu is available" status, fall back to [Login and human unblock](../SKILL.md#login-and-human-unblock).
