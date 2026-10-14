@@ -502,6 +502,8 @@ class RuntimeTests(unittest.TestCase):
             def send(self, method, params=None):
                 if method == "Target.getTargetInfo":
                     return {"targetInfo": {"targetId": self.page.target_id}}
+                if method == "Page.getLayoutMetrics":
+                    return {"cssVisualViewport": {"zoom": 1}}
                 self.context.cdp_calls.append((method, params))
                 page = FakePage(params["url"], target_id="target-1")
                 self.context.pages.append(page)
@@ -690,9 +692,19 @@ class RuntimeTests(unittest.TestCase):
             def screenshot(self, path, full_page=False, scale="device"):
                 self.screenshot_calls.append({"path": path, "full_page": full_page})
 
+        class UnzoomedSession:
+            def send(self, method):
+                assert method == "Page.getLayoutMetrics"
+                return {"cssVisualViewport": {"zoom": 1}}
+
+            def detach(self):
+                pass
+
         page = FakePage()
         runtime = PatchrightRuntime(profile_dir=Path("/tmp/surf-patchright-test"))
-        runtime.browser_or_context = object()
+        runtime.browser_or_context = types.SimpleNamespace(
+            pages=[page], new_page=None, new_cdp_session=lambda page: UnzoomedSession()
+        )
         runtime.pages["thread"] = patchright_bridge.PageSlot(page=page, page_id=1)
 
         self.assertEqual(

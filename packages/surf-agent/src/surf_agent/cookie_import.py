@@ -15,9 +15,9 @@ from typing import Any, Callable, Iterable
 from urllib.parse import quote
 
 from .config import CookieSourceConfig, write_config
+from .constants import CHROME_PROFILE_DIRECTORY
 from .errors import SurfAgentError
 
-DESTINATION_PROFILE = "Default"
 _COOKIE_CANDIDATES = (Path("Cookies"), Path("Network") / "Cookies")
 _SIDECARS = ("-wal", "-journal", "-shm")
 UNSUPPORTED_PLATFORM_MESSAGE = "live cookie import is supported only on Linux and macOS"
@@ -71,7 +71,7 @@ class CookieImporter:
         source_profile = self._source_profile()
         source_db, relative_candidate = discover_cookie_database(source_profile)
         self._validate_runtime_source_paths(source_profile, source_db)
-        destination_profile = self.destination_root / DESTINATION_PROFILE
+        destination_profile = self.destination_root / CHROME_PROFILE_DIRECTORY
         destination_db = discover_destination_cookie_database(destination_profile)
         self._validate_paths(source_db, destination_profile)
         self._ensure_destination_inactive()
@@ -281,7 +281,7 @@ class CookieImporter:
         source_os_crypt: Any,
         destination_local_state_absent: bool,
     ) -> Path:
-        destination = self.destination_root / DESTINATION_PROFILE / relative_candidate
+        destination = self.destination_root / CHROME_PROFILE_DIRECTORY / relative_candidate
         self._ensure_destination_inactive()
         destination.parent.mkdir(parents=True, exist_ok=True)
         descriptor, name = tempfile.mkstemp(prefix=".cookie-import-", suffix=".sqlite", dir=destination.parent)
