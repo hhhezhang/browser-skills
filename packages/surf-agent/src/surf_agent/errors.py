@@ -49,24 +49,46 @@ class BridgeToolError(SurfAgentError):
 
 
 def _is_surf_frame(frame: traceback.FrameSummary) -> bool:
+    # Placeholder names such as <cell> or <stdin> are caller code; resolving them
+    # as paths would match the package when the working directory is inside it.
+    if frame.filename.startswith("<"):
+        return False
     return os.path.abspath(frame.filename).startswith(PACKAGE_DIRECTORY)
 
 
+def _is_frozen_frame(frame: traceback.FrameSummary) -> bool:
+    # Python's own runpy and importlib machinery, e.g. under `python -m`.
+    return frame.filename.startswith("<frozen ")
+
+
+def surf_error_summary(error: SurfAgentError) -> str:
+    """`ExceptionName [code]: message`, then one `Caused by:` line per wrapped error.
+
+    A Surf error that wraps an OS or database failure often leaves that failure
+    out of its own message, and the trimmed output has no other place to show it.
+    """
+    code = f" [{error.code}]" if error.code else ""
+    lines = [f"{type(error).__name__}{code}: {error}\n"]
+    cause = error.__cause__
+    while cause is not None:
+        lines.append("Caused by: " + "".join(traceback.format_exception_only(cause)))
+        cause = cause.__cause__
+    return "".join(lines)
+
+
 def format_surf_error(error: SurfAgentError, trace: TracebackType | None) -> str:
-    """The caller's frames and an `ExceptionName [code]: message` line.
+    """The caller's frames and the error's summary.
 
     Surf's own frames are the same on every failure, so they only cost the caller
     tokens. The caller's frames are the run outside this package that ends at the
     first call into it; leading Surf frames are the session runner executing a cell.
     """
-    frames = traceback.extract_tb(trace)
+    frames = [frame for frame in traceback.extract_tb(trace) if not _is_frozen_frame(frame)]
     caller_frames = itertools.takewhile(
         lambda frame: not _is_surf_frame(frame),
         itertools.dropwhile(_is_surf_frame, frames),
     )
-    code = f" [{error.code}]" if error.code else ""
-    summary = f"{type(error).__name__}{code}: {error}\n"
-    return "".join(traceback.format_list(list(caller_frames))) + summary
+    return "".join(traceback.format_list(list(caller_frames))) + surf_error_summary(error)
 
 
 def install_brief_surf_tracebacks() -> None:

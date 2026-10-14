@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from .errors import SurfAgentError, format_surf_error
+from .errors import SurfAgentError, format_surf_error, surf_error_summary
 from .processes import iter_process_args
 from .runtime import surf_agent_state_dir
 
@@ -1199,11 +1199,14 @@ def _run_cell_request(
             except BaseException as error:
                 status = "error"
                 if isinstance(error, SurfAgentError):
-                    report = format_surf_error(error, error.__traceback__)
+                    sys.stderr.write(format_surf_error(error, error.__traceback__))
+                    summary = surf_error_summary(error)
                 else:
-                    report = traceback.format_exc()
-                sys.stderr.write(report)
-                detail = report.strip().splitlines()[-1]
+                    traceback.print_exc()
+                    summary = "".join(traceback.format_exception_only(error))
+                # The first line keeps the name and code; messages can carry
+                # multi-line call logs whose last line says neither.
+                detail = summary.splitlines()[0]
     finally:
         if expiration is not None:
             expiration.cancel()
