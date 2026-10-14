@@ -499,18 +499,26 @@ class PatchrightRuntime:
     async def _require_unzoomed(self, page: Any) -> None:
         # Saved zoom is cleared at launch, but a human can still zoom a window mid-session.
         # Under zoom, screenshots show only part of the viewport, or nothing once scrolled.
-        session = None
+        session = await self._maybe_await(self._context().new_cdp_session(page))
         try:
-            session = await self._maybe_await(self._context().new_cdp_session(page))
-            metrics = await self._maybe_await(session.send("Page.getLayoutMetrics"))
-        finally:
-            await self._best_effort_detach(session)
+            # The renderer answers this query, so a page stuck in a script would block the bridge for good.
+            metrics = await asyncio.wait_for(
+                self._maybe_await(session.send("Page.getLayoutMetrics")), ACTION_TIMEOUT_MS / 1000
+            )
+        except TimeoutError as exc:
+            raise BridgeCodedError(
+                ErrorCode.ACTION_TIMEOUT, f"page did not report its zoom within {ACTION_TIMEOUT_MS}ms; it may be busy"
+            ) from exc
+        # Detach only after an answer: behind an unanswered query the detach hangs too.
+        # A session left attached on failure ends when its page closes.
+        await self._best_effort_detach(session)
         zoom = metrics["cssVisualViewport"]["zoom"]
         if not math.isclose(zoom, 1, abs_tol=ZOOM_TOLERANCE):
             raise BridgeCodedError(
                 ErrorCode.PAGE_ZOOMED,
                 f"browser zoom is {zoom:.0%} on this page, and screenshots need 100%; reset it in the window "
-                "(Ctrl+0, or Cmd+0 on macOS) or stop the bridge, which clears saved zoom at the next launch",
+                "(Ctrl+0, or Cmd+0 on macOS; if that does not help, Settings > Appearance > Page zoom) "
+                "or stop the bridge, which closes every thread and clears saved zoom at the next launch",
             )
 
     async def _page_target_id(self, context: Any, page: Any) -> str | None:

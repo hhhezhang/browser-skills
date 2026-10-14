@@ -3,7 +3,7 @@
 Under any zoom but 100%, Patchright's CSS-scale screenshots show only the top-left
 part of the viewport, and nothing once the page is scrolled (#31). CDP has no
 command to change browser zoom, and synthetic Ctrl+0 never reaches Chrome's
-shortcuts, so the profile file is the only place Surf can reset it.
+shortcuts, so Surf resets it in the profile file before launch.
 """
 
 from __future__ import annotations
@@ -28,7 +28,12 @@ def clear_saved_zoom(profile_dir: Path) -> None:
     preferences_path = profile_dir / CHROME_PROFILE_DIRECTORY / "Preferences"
     if not preferences_path.exists():
         return
-    preferences = json.loads(preferences_path.read_text(encoding="utf-8"))
+    try:
+        preferences = json.loads(preferences_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        # Chrome sets an unreadable Preferences file aside and starts from defaults,
+        # so there is no saved zoom left to clear.
+        return
     partition = preferences.get("partition", {})
     saved = [key for key in SAVED_ZOOM_PREFERENCES if key in partition]
     if not saved:

@@ -213,7 +213,7 @@ Closes remembered pages whose thread names match the glob.
 - `action_timeout`: Element looked actionable but the action did not finish. Snapshot before retrying.
 - `wait_timeout`: A `wait()` condition never held; the message shows what the page showed.
 - `page_closed`: The page closed during the call. Inspect with `is_open()` before reopening.
-- `page_zoomed`: From `screenshot()`: the page's browser zoom is not 100%, so the image would show the wrong area. Surf clears saved zoom when it starts Chrome, so a human zoomed this site during the session. Ask them to press Ctrl+0 (Cmd+0 on macOS) in the window, or call `browser.stop_bridge()` and reopen the page.
+- `page_zoomed`: From `screenshot()`: the page's browser zoom is not 100%, so the image would show the wrong area. Surf clears saved zoom when it starts Chrome, so someone changed zoom during the session: for this site, or Chrome's default in Settings. Ask them to press Ctrl+0 (Cmd+0 on macOS) in the window, or set Settings > Appearance > Page zoom to 100% if that does not help. Otherwise call `browser.stop_bridge()`, which closes every thread, and reopen the page.
 - `bridge_unavailable`: The browser bridge is not reachable. The call did not reach the browser.
 - `outcome_unknown`: The call reached the browser but its result was lost. It may have taken effect; follow the [recovery workflow](../SKILL.md#recovery).
 
