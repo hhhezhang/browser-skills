@@ -22,6 +22,7 @@ class ErrorCode(StrEnum):
     ACTION_TIMEOUT = "action_timeout"
     WAIT_TIMEOUT = "wait_timeout"
     PAGE_CLOSED = "page_closed"
+    PAGE_ZOOMED = "page_zoomed"
     BRIDGE_UNAVAILABLE = "bridge_unavailable"
     OUTCOME_UNKNOWN = "outcome_unknown"
 

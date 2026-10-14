@@ -9,6 +9,8 @@ DEFAULT_PATCHRIGHT_PORT = "9346"
 DEFAULT_PATCHRIGHT_APP_ID = "surf-agent"
 # Patchright always launches the Chrome channel, so the destination profile is Chrome's.
 PATCHRIGHT_BROWSER_FAMILY = "chrome"
+# Surf launches Chrome without --profile-directory, so it uses Chrome's default profile.
+CHROME_PROFILE_DIRECTORY = "Default"
 SURF_AGENT_WINDOW_TITLE = "Surf Agent"
 CHROME_NEW_WINDOW_TIMEOUT_S = 10.0
 SNAPSHOT_DIFF_MAX_RATIO = 0.50
