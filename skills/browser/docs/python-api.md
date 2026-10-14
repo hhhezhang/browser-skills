@@ -210,3 +210,5 @@ Closes remembered pages whose thread names match the glob.
 - `page_closed`: The page closed during the call. Inspect with `is_open()` before reopening.
 - `bridge_unavailable`: The browser bridge is not reachable. The call did not reach the browser.
 - `outcome_unknown`: The call reached the browser but its result was lost. It may have taken effect; follow the [recovery workflow](../SKILL.md#recovery).
+
+An uncaught `SurfAgentError` prints only your own frames and `ErrorName [code]: message`; other exceptions print their full traceback.
