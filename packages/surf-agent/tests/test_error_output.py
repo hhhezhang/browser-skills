@@ -186,3 +186,29 @@ def test_other_error_keeps_full_traceback(run_mode, surf_environment, short_tmp_
     assert (caller_file, "read_region") in printed_frames, stderr
     assert any(is_surf_frame(file) for file, _ in printed_frames), stderr
     assert any(line.startswith("ValueError: ") for line in stderr.splitlines()), stderr
+
+
+CELL_ERROR_FRAME = re.compile(r"^--- cell #1 error: (?P<detail>.*) \(\d+ ms\) ---$", re.MULTILINE)
+
+
+@pytest.mark.parametrize(
+    ("code", "detail_prefix", "detail_part"),
+    [
+        ("x = (\n", "SyntaxError: ", "never closed"),
+        (CODED_SURF_ERROR, "BridgeToolError [wait_timeout]: ", BRIDGE_FAILURE),
+        ('raise RuntimeError("first line\\nsecond line")\n', "RuntimeError: ", "first line"),
+    ],
+    ids=["syntax error", "surf error", "multi-line message"],
+)
+def test_cell_error_frame_names_the_error(
+    code, detail_prefix, detail_part, surf_environment, short_tmp_path
+):
+    """The session's per-cell status line says which error ended the cell, and why."""
+    _, stderr = run_session_cell(code, surf_environment, short_tmp_path)
+
+    frame = CELL_ERROR_FRAME.search(stderr)
+    assert frame, stderr
+    detail = frame["detail"]
+    assert detail.startswith(detail_prefix), detail
+    assert detail_part in detail, detail
+    assert "second line" not in detail, detail
