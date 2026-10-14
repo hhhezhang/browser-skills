@@ -208,6 +208,7 @@ Closes remembered pages whose thread names match the glob.
 - `stale_ref`: Ref is not in the current page. Take a new snapshot and use its refs.
 - `not_found`: Selector matches nothing, or a `response_body` key was cleared by `open()` or evicted. Snapshot and pick a real target, or list `responses()` again.
 - `not_visible`, `not_enabled`, `not_editable`: Element exists but cannot take the action. Reveal it, wait for it, or target the real control.
+  From `click_at`, `not_visible` means the point lies outside the viewport; read it again from a fresh viewport screenshot.
 - `intercepted`: Another element covers the target; the message names it (often a cookie banner or modal). Dismiss it first.
 - `action_timeout`: Element looked actionable but the action did not finish. Snapshot before retrying.
 - `wait_timeout`: A `wait()` condition never held; the message shows what the page showed.
