@@ -114,6 +114,7 @@ thread = Thread(name='default')  # bind once per session
 thread.open(url) -> str
 thread.is_open() -> bool
 thread.click(target) -> str  # target: "@ref" from the latest snapshot, or a CSS selector
+thread.click_at(x, y) -> str  # viewport CSS pixels read off screenshot(); only for content no ref or selector reaches
 thread.fill(target, text) -> str  # on a <select>, picks the option by value or label
 thread.upload(target, paths) -> str  # target the <input type=file>, even if hidden; Patchright only
 thread.type_text(text) -> str
