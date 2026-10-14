@@ -10,10 +10,13 @@ Work on the task's existing thread and interpreter mode from the [browser skill 
 
 Done when page state shows the signed-in account: its name, a sign-out control, or the page the login was for.
 
+A click here starts work that outlives the call: a fill, a submit, a passkey check, a panel opening. After each click, let the page **settle** before reading it: `thread.wait(url=...)` when you know where the login lands, otherwise `thread.sleep()`: 1500 ms after a field click, 3000 ms after any other. Reading too early shows the old page, which invites a second submit.
+
 1. Click the observed sign-in field, then emit a snapshot, capture the viewport and view the image. If the click fails with `intercepted` by the field's own label, click that label instead: it focuses the field. When the image shows no panel and the snapshot no `1Password menu is available` status, follow the fallback.
 
    ```python
    thread.click("@e7")  # sign-in field ref from the observed snapshot
+   thread.sleep(1500)  # settle
    thread.emit(thread.snapshot())
    thread.screenshot("/tmp/surf-login.png")
    ```
@@ -22,16 +25,17 @@ Done when page state shows the signed-in account: its name, a sign-out control, 
 
    ```python
    thread.click_at(1158, 449)  # entry center from the screenshot
+   thread.sleep(3000)  # settle
    thread.emit(thread.snapshot())
    ```
 
-3. Decide from the snapshot first; while the page is still loading, `wait()` for the next page or emit a new snapshot:
+3. Decide from the snapshot first; while the page is still loading, settle again and emit a new snapshot:
    - Signed in: done.
    - A new sign-in field, such as the password step: step 1.
    - A captcha, a one-time code, or an error: fallback.
    - Otherwise capture the viewport and view the image, then:
      - A panel shows: step 2. The same panel still showing after two clicks on it: fallback.
-     - No panel, but a control the login needs, such as Next or the site's own "Sign in with passkey" button: click it by ref, emit a snapshot, and repeat step 3.
+     - No panel, but a control the login needs, such as Next or the site's own "Sign in with passkey" button: click it by ref, settle, emit a snapshot, and repeat step 3.
      - Neither: fallback.
 
 ## Without image viewing
