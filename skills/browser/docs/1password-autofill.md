@@ -27,7 +27,7 @@ Pre-condition: 1Password desktop app unlocked.
 
 ## Passkey sign-in
 
-When the page starts a passkey request, 1Password opens a "Sign in with a passkey" popup listing matching entries. Snapshots don't show it and keys don't reach it, but screenshots do, so select the entry by position:
+When the page starts a passkey request, 1Password opens a "Sign in with a passkey" popup listing matching entries. Some sites start it as soon as the sign-in field gets focus, before any passkey button; when it shows, prefer it over the keyboard fill above. Snapshots don't show it and keys don't reach it, but screenshots do, so select the entry by position:
 
 1. Capture the viewport and view the image:
 
@@ -35,7 +35,7 @@ When the page starts a passkey request, 1Password opens a "Sign in with a passke
    thread.screenshot("/tmp/surf-passkey.png")
    ```
 
-2. Find the entry for the task's account. If several entries could match and the task doesn't say which, ask the user. Click the entry's center, using coordinates read off the image as they are:
+2. Find the entry for the task's account. If several entries could match and the task doesn't say which, ask the user. Click the entry's center in the image's own pixels; if your image view is downscaled, scale the point back to the file's size first:
 
    ```python
    thread.click_at(412, 286)  # entry center from the screenshot
