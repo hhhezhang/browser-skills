@@ -1,6 +1,13 @@
 from __future__ import annotations
 
 from enum import StrEnum
+import itertools
+import os
+import sys
+import traceback
+from types import TracebackType
+
+PACKAGE_DIRECTORY = os.path.dirname(os.path.abspath(__file__)) + os.sep
 
 
 class ErrorCode(StrEnum):
@@ -39,3 +46,64 @@ class BridgeToolError(SurfAgentError):
     def __init__(self, *, backend_label: str, tool_name: str, detail: str, code: ErrorCode | None = None) -> None:
         self.detail = detail
         super().__init__(f"{backend_label} bridge tool {tool_name} failed: {detail}", code=code)
+
+
+def _is_surf_frame(frame: traceback.FrameSummary) -> bool:
+    # Placeholder names such as <cell> or <stdin> are caller code; resolving them
+    # as paths would match the package when the working directory is inside it.
+    if frame.filename.startswith("<"):
+        return False
+    return os.path.abspath(frame.filename).startswith(PACKAGE_DIRECTORY)
+
+
+def _is_frozen_frame(frame: traceback.FrameSummary) -> bool:
+    # Python's own runpy and importlib machinery, e.g. under `python -m`.
+    return frame.filename.startswith("<frozen ")
+
+
+def surf_error_summary(error: SurfAgentError) -> str:
+    """`ExceptionName [code]: message`, then one `Caused by:` line per wrapped error.
+
+    A Surf error that wraps an OS or database failure often leaves that failure
+    out of its own message, and the trimmed output has no other place to show it.
+    """
+    code = f" [{error.code}]" if error.code else ""
+    lines = [f"{type(error).__name__}{code}: {error}\n"]
+    cause = error.__cause__
+    seen = {id(error)}
+    # A chain can loop back on itself; the traceback module guards the same way.
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
+        lines.append("Caused by: " + "".join(traceback.format_exception_only(cause)))
+        cause = cause.__cause__
+    return "".join(lines)
+
+
+def format_surf_error(error: SurfAgentError, trace: TracebackType | None) -> str:
+    """The caller's frames and the error's summary.
+
+    Surf's own frames are the same on every failure, so they only cost the caller
+    tokens. The caller's frames are the run outside this package that ends at the
+    first call into it; leading Surf frames are the session runner executing a cell.
+    """
+    frames = [frame for frame in traceback.extract_tb(trace) if not _is_frozen_frame(frame)]
+    caller_frames = itertools.takewhile(
+        lambda frame: not _is_surf_frame(frame),
+        itertools.dropwhile(_is_surf_frame, frames),
+    )
+    return "".join(traceback.format_list(list(caller_frames))) + surf_error_summary(error)
+
+
+def install_brief_surf_tracebacks() -> None:
+    """Print uncaught Surf errors briefly in a script; other errors keep the full traceback."""
+    previous_hook = sys.excepthook
+
+    def excepthook(
+        error_type: type[BaseException], error: BaseException, trace: TracebackType | None
+    ) -> None:
+        if isinstance(error, SurfAgentError):
+            sys.stderr.write(format_surf_error(error, trace))
+        else:
+            previous_hook(error_type, error, trace)
+
+    sys.excepthook = excepthook
