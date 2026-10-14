@@ -82,7 +82,7 @@ The user watches the Surf window, so clear overlays before working the page. Whe
 - A click failing with `error.code == "intercepted"` names the covering element: dismiss it, then retry.
 - Still covering after two dismiss attempts: hide the overlay and its backdrop with `thread.evaluate` (`display: none`; removing nodes can break framework-rendered pages), then undo the page locks it left: `overflow` on `html`/`body`, and `inert` or `aria-hidden` on the main content. A new snapshot should show that content, ready to click.
 
-An overlay that gates the task (login, captcha, paywall, age or terms confirmation) is a human decision: leave it in place and follow [Login and human unblock](#login-and-human-unblock).
+An overlay that gates the task (login, captcha, paywall, age or terms confirmation): leave it in place and follow [Login and human unblock](#login-and-human-unblock).
 
 Inspect the snapshot before choosing targets: use a ref the snapshot printed, so a line `- searchbox "Search" [ref=e12]` is targeted as `@e12` ([target forms](docs/python-api.md#thread)). Batch deterministic actions in one cell until a new observation or human decision is needed:
 
@@ -138,9 +138,11 @@ For one method's contract, `Browser` administration and error codes, grep [Pytho
 
 ## Login and human unblock
 
-When a site asks for login that the user's normal Chrome already has, offer to import that site's cookies; on consent, follow [import for one site](docs/cookie-import.md#import-for-one-site). Never import without asking. For other cookie configuration, read [cookie import](docs/cookie-import.md) first. For extension-based login, read [1Password setup](docs/1password-setup.md) once and [autofill](docs/1password-autofill.md) when logging in.
+Asking the user breaks their concentration, so resolve login yourself when the task allows. When the task implies the user is signed in or authorizes logging in, such as acting on their own account, log in without asking through [1Password](docs/1password-autofill.md). For first-time configuration, read [1Password setup](docs/1password-setup.md).
 
-When blocked, ask the user to complete the blocker in the Surf Agent window and confirm when done. Preserve the page and wait for that confirmation, then inspect it using the same thread. Reopening the URL may destroy completed human work.
+When 1Password doesn't get you in and the user's normal Chrome already has the site's login, offer to import that site's cookies; on consent, follow [import for one site](docs/cookie-import.md#import-for-one-site). Never import without asking. For other cookie configuration, read [cookie import](docs/cookie-import.md) first.
+
+When blocked by a step only the user can take, such as unlocking 1Password, a captcha, a one-time code, or a choice the task doesn't settle, ask once for everything you need: the user completes the blocker in the Surf Agent window and confirms when done. Preserve the page and wait for that confirmation, then inspect it using the same thread. Reopening the URL may destroy completed human work.
 
 For manual login, close Surf automation windows and call `Browser().open_profile(url)`. Close manual Chrome before resuming automation. Bring a window forward with `Thread(name).focus()` only when requested.
 
