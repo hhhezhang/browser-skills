@@ -29,7 +29,8 @@ from .runtime import (
 
 # Where releases before the ~/.agents root could have written. platformdirs
 # honors XDG_* on macOS too, so the same install used the XDG folders or
-# Application Support depending on the environment Surf ran in; check both.
+# Application Support depending on the environment Surf ran in; check both,
+# and let the path active in the current environment win.
 LEGACY_DIRS = PlatformDirs(APP_NAME, appauthor=False)
 XDG_DEFAULT_ROOTS = {"config": ".config", "state": ".local/state", "data": ".local/share"}
 MACOS_APP_SUPPORT = "Library/Application Support"
@@ -56,12 +57,16 @@ class LegacyItem:
         return [path for path in self.candidates if path.exists()]
 
     @property
-    def pending(self) -> bool:
-        return len(self.found) == 1 and not self.target.exists()
+    def active(self) -> Path | None:
+        """The copy to move: the active path wins, so other copies are stale.
 
-    @property
-    def conflicting(self) -> bool:
-        return len(self.found) + self.target.exists() > 1 and bool(self.found)
+        An existing target is already active. Otherwise the first candidate is
+        what platformdirs resolves in this environment; fall back to whichever
+        copy exists.
+        """
+        if self.target.exists():
+            return None
+        return next(iter(self.found), None)
 
 
 def _legacy_roots(kind: str) -> list[Path]:
@@ -98,18 +103,12 @@ def legacy_items() -> list[LegacyItem]:
 
 
 def pending_legacy_items() -> list[LegacyItem]:
-    return [item for item in legacy_items() if item.pending]
+    return [item for item in legacy_items() if item.active is not None]
 
 
 def check_legacy_storage() -> None:
-    """Fail fast instead of silently starting a fresh, logged-out profile.
-
-    Refuses while any legacy item exists, even when its target exists too:
-    two profiles mean one would be ignored, and only the user knows which.
-    """
-    listing = "\n".join(
-        f"  {path} -> {item.target}" for item in legacy_items() for path in item.found
-    )
+    """Fail fast instead of silently starting a fresh, logged-out profile."""
+    listing = "\n".join(f"  {item.active} -> {item.target}" for item in pending_legacy_items())
     if not listing:
         return
     raise LegacyStorageError(
@@ -126,31 +125,18 @@ def migrate_legacy_storage() -> None:
 
     Safe to re-run: each item moves only while its target is absent, so an
     interrupted run finishes on the next one and nothing is nested or replaced.
+    Copies that lose to the active path stay put and are listed with the old
+    folders to trash.
     """
     if surf_agent_home():
         raise SurfAgentError("SURF_AGENT_HOME is set; the migration only moves the default layout")
-    conflicts = [item for item in legacy_items() if item.conflicting]
-    if conflicts:
-        listing = "\n\n".join(
-            "\n".join(
-                [f"  old: {path}" for path in item.found]
-                + ([f"  new: {item.target}"] if item.target.exists() else [])
-            )
-            for item in conflicts
-        )
-        raise SurfAgentError(
-            "These exist in more than one location:\n"
-            f"{listing}\n"
-            "Keep the one holding your data (for a profile, the one you are logged in with), "
-            "trash the others, then re-run the migration"
-        )
     pending = pending_legacy_items()
     if not pending:
         print("Nothing to migrate.")
     else:
         _end_sessions()
     for item in pending:
-        legacy = item.found[0]
+        legacy = item.active
         if legacy.name == LEGACY_PROFILES:
             _stop_legacy_browser(legacy / "chrome")
         item.target.parent.mkdir(parents=True, exist_ok=True)
@@ -165,14 +151,13 @@ def migrate_legacy_storage() -> None:
                 "move it manually, then re-run the migration"
             ) from exc
         print(f"Moved {legacy} -> {item.target}")
-    # Checked without overrides: SURF_AGENT_PROFILE_DIR leaves the legacy profile
-    # in place, and its folder must not be offered for trashing.
-    kept = [
-        path
-        for kind, name in (("config", "config.json"), ("state", "cookie-import.json"), ("data", LEGACY_PROFILES))
-        for path in _candidates(kind, name)
-        if path.exists()
-    ]
+    # SURF_AGENT_PROFILE_DIR leaves the legacy profile unmigrated, so its folder
+    # must not be offered for trashing.
+    kept = (
+        [path for path in _candidates("data", LEGACY_PROFILES) if path.exists()]
+        if os.environ.get("SURF_AGENT_PROFILE_DIR")
+        else []
+    )
     leftovers = sorted(
         {
             root

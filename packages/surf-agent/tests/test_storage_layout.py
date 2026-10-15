@@ -313,22 +313,37 @@ def test_existing_target_is_neither_overwritten_nor_nested_into():
     assert not (target / "profiles").exists()
 
 
-def test_conflicting_legacy_item_is_not_silently_skipped(capsys):
-    # Both old and new profiles exist. Moving is off the table, but the command
-    # must not imply the old folder is safe to trash without naming the
-    # still-unmoved profile inside it.
+@pytest.mark.parametrize(
+    ("resolver", "winner", "loser"),
+    [
+        (None, linux_legacy, macos_legacy),
+        ("simulate_macos", macos_legacy, linux_legacy),
+    ],
+)
+def test_path_active_in_this_environment_wins_over_other_copies(resolver, winner, loser, request):
+    # One Mac can hold copies in both the XDG folders and Application Support,
+    # depending on whether XDG_* was set when the old version ran.
+    if resolver:
+        request.getfixturevalue(resolver)
+    plant(linux_legacy(), kinds=["profiles"])
+    (macos_legacy()["profiles"] / PROFILE_MARKER).parent.mkdir(parents=True)
+    (macos_legacy()["profiles"] / PROFILE_MARKER).write_text("other profile")
+    winner_text = content("profiles", winner()["profiles"])
+
+    migrate_legacy_storage()
+
+    assert content("profiles", new_targets()["profiles"]) == winner_text
+    assert loser()["profiles"].exists()
+    check_legacy_storage()
+
+
+def test_existing_target_wins_and_startup_proceeds():
     plant(linux_legacy(), kinds=["profiles"])
     target = new_targets()["profiles"]
     (target / PROFILE_MARKER).parent.mkdir(parents=True)
     (target / PROFILE_MARKER).write_text("new profile")
 
-    legacy_profiles = str(linux_legacy()["profiles"])
-    try:
-        migrate_legacy_storage()
-    except SurfAgentError as error:
-        assert legacy_profiles in str(error)
-    else:
-        assert legacy_profiles in capsys.readouterr().out
+    check_legacy_storage()
 
 
 def test_migration_refuses_while_chrome_uses_old_profile(monkeypatch):
