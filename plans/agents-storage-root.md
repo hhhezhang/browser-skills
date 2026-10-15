@@ -1,5 +1,5 @@
 ---
-status: open
+status: done
 ---
 
 # Store Surf files under `~/.agents`
@@ -82,14 +82,18 @@ Constraints:
 - [x] Decisions agreed with user (2026-10-14).
 - [x] Steps 1–3 implemented.
 - [x] Docs and ADR.
-- [ ] Independent tests.
-- [ ] Independent review.
-- [x] Runtime + pin commits (85d574b, 89032e2; re-pin if review changes the runtime).
+- [x] Independent tests (25, then 3 regression tests that fail on 3d62689).
+- [x] Independent review; findings fixed in f2ed651.
+- [x] Runtime + pin commits (final runtime f2ed651, pin a0e5fed).
 - [x] Dotfiles convention and ignores (dotfiles branch `feat/agents-storage-convention`, 4b1b0c3f; bullet applied to live `~/.agents/AGENTS.md` by hand because the repo holds other unpushed changes).
-- [ ] Local migration and live check.
-- [ ] PR merged.
+- [x] Local migration and live check: three items moved, 7.0 GB profile kept its inode, GitHub logged in as the user through the launcher; legacy folders trashed.
+- [x] PR merged.
 
 ## Surprises & Discoveries
+
+- Independent tests found two silent fresh-profile paths: a profile at both locations was skipped and its folder offered for trashing, and a hand-started bridge without `--profile-dir` ignored legacy files. The guard now refuses while any legacy item exists.
+- Review found the google-search CLI masked the guard as `internal_error`; it now reports `browser_unavailable` with the migration command on stderr. The leftover list ignored overrides and could offer the folder still holding the profile.
+- From the repo workspace environment, `Thread.open` sometimes stayed on `about:blank`; the same code through the launcher worked (#38).
 
 - Tests read the real home: `SurfAgent()` without `SURF_AGENT_HOME` hit the user's legacy files. `tests/conftest.py` now redirects `HOME` and unsets `XDG_{CONFIG,STATE,DATA}_HOME` for every test.
 - An old-pin bridge blocks both migration and `stop_bridge()` (guard). The migration stops a bridge bound to the legacy profile itself, since its identity check proves it is the old one.
@@ -107,4 +111,8 @@ Constraints:
 
 ## Outcomes & Retrospective
 
-(fill on close)
+Surf keeps `config.json` in `~/.agents/config/surf-agent/` and everything else in `~/.agents/state/surf-agent/` on Linux and macOS; the convention is in ADR 0009 and the user's global AGENTS.md. This machine migrated with the explicit command and kept its logins.
+
+Follow-ups: #36 (Chrome caches and on-device model out of the profile), #37 (remove `legacy_storage` and platformdirs after one release), #38 (dev-environment navigation).
+
+Retrospective: an independent tester blind to the plan caught the two data-loss paths the design review had not; per-item checks (not per-root) were the right unit throughout.
