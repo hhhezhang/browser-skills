@@ -38,6 +38,10 @@ migrate_legacy_storage()
 PY"""
 
 
+class LegacyStorageError(SurfAgentError):
+    """Surf files remain at their pre-``~/.agents`` locations."""
+
+
 @dataclass(frozen=True)
 class LegacyItem:
     legacy: Path
@@ -52,28 +56,29 @@ class LegacyItem:
         return self.legacy.exists() and self.target.exists()
 
 
+def _legacy_config() -> Path:
+    return Path(LEGACY_DIRS.user_config_dir) / "config.json"
+
+
+def _legacy_cookie_import() -> Path:
+    return Path(LEGACY_DIRS.user_state_dir) / "cookie-import.json"
+
+
+def _legacy_profiles() -> Path:
+    return Path(LEGACY_DIRS.user_data_dir) / LEGACY_PROFILES
+
+
 def legacy_items() -> list[LegacyItem]:
-    """The files worth keeping, paired with their new location."""
+    """The files worth keeping that the current overrides still default, paired with their new location."""
     if surf_agent_home():
         # An explicit home never used the platformdirs layout.
         return []
     items = [
-        LegacyItem(
-            Path(LEGACY_DIRS.user_config_dir) / "config.json",
-            surf_agent_config_dir() / "config.json",
-        ),
-        LegacyItem(
-            Path(LEGACY_DIRS.user_state_dir) / "cookie-import.json",
-            surf_agent_state_dir() / "cookie-import.json",
-        ),
+        LegacyItem(_legacy_config(), surf_agent_config_dir() / "config.json"),
+        LegacyItem(_legacy_cookie_import(), surf_agent_state_dir() / "cookie-import.json"),
     ]
     if not os.environ.get("SURF_AGENT_PROFILE_DIR"):
-        items.append(
-            LegacyItem(
-                Path(LEGACY_DIRS.user_data_dir) / LEGACY_PROFILES,
-                surf_agent_state_dir() / LEGACY_PROFILES,
-            )
-        )
+        items.append(LegacyItem(_legacy_profiles(), surf_agent_state_dir() / LEGACY_PROFILES))
     return items
 
 
@@ -91,10 +96,12 @@ def check_legacy_storage() -> None:
     if not remaining:
         return
     listing = "\n".join(f"  {item.legacy} -> {item.target}" for item in remaining)
-    raise SurfAgentError(
+    raise LegacyStorageError(
         "Surf files are still at their old location:\n"
         f"{listing}\n"
-        "Kill sessions started by the previous Surf version, then move them with:\n"
+        "Kill sessions started by the previous Surf version (on macOS they cannot be "
+        "listed; wait for their idle timeout), then move the files with the command "
+        "below. It closes a Surf browser still running from the previous version.\n"
         f"{MIGRATION_COMMAND}"
     )
 
@@ -105,13 +112,16 @@ def migrate_legacy_storage() -> None:
     Safe to re-run: each item moves only while its target is absent, so an
     interrupted run finishes on the next one and nothing is nested or replaced.
     """
+    if surf_agent_home():
+        raise SurfAgentError("SURF_AGENT_HOME is set; the migration only moves the default layout")
     conflicts = [item for item in legacy_items() if item.conflicting]
     if conflicts:
-        listing = "\n".join(f"  {item.legacy}\n  {item.target}" for item in conflicts)
+        listing = "\n".join(f"  old: {item.legacy}\n  new: {item.target}" for item in conflicts)
         raise SurfAgentError(
             "These exist at both the old and the new location:\n"
             f"{listing}\n"
-            "Keep one of each pair, trash the other, then re-run the migration"
+            "Keep the one holding your data (for a profile, the one you are logged in with), "
+            "trash the other, then re-run the migration"
         )
     pending = pending_legacy_items()
     if not pending:
@@ -131,6 +141,9 @@ def migrate_legacy_storage() -> None:
                 "move it manually, then re-run the migration"
             ) from exc
         print(f"Moved {item.legacy} -> {item.target}")
+    # Checked without overrides: SURF_AGENT_PROFILE_DIR leaves the legacy profile
+    # in place, and its folder must not be offered for trashing.
+    kept = [path for path in (_legacy_config(), _legacy_cookie_import(), _legacy_profiles()) if path.exists()]
     leftovers = sorted(
         {
             Path(root)
@@ -139,7 +152,7 @@ def migrate_legacy_storage() -> None:
                 LEGACY_DIRS.user_state_dir,
                 LEGACY_DIRS.user_data_dir,
             )
-            if Path(root).exists()
+            if Path(root).exists() and not any(path.is_relative_to(root) for path in kept)
         }
     )
     if leftovers:

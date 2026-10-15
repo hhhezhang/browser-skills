@@ -375,3 +375,28 @@ def test_bridge_refuses_default_profile_while_legacy_profile_remains(bridge_prof
     with pytest.raises(SurfAgentError, match="migrate_legacy_storage"):
         bridge.main([])
     assert bridge_profiles == []
+
+
+def test_migration_refuses_when_surf_agent_home_is_set(monkeypatch, tmp_path, capsys):
+    # The old roots are not Surf's files under an explicit home; offering them
+    # for trashing would be wrong.
+    monkeypatch.setenv("SURF_AGENT_HOME", str(tmp_path / "surf-home"))
+    plant(linux_legacy())
+    with pytest.raises(SurfAgentError):
+        migrate_legacy_storage()
+    assert "trash" not in capsys.readouterr().out
+    for kind, path in linux_legacy().items():
+        assert path.exists(), kind
+
+
+def test_profile_override_never_offers_the_folder_holding_the_legacy_profile(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("SURF_AGENT_PROFILE_DIR", str(tmp_path / "profile"))
+    plant(linux_legacy())
+
+    migrate_legacy_storage()
+
+    out = capsys.readouterr().out
+    assert content("config", new_targets()["config"]) == '{"legacy": "config"}'
+    assert content("profiles", linux_legacy()["profiles"]) == "legacy profiles"
+    profile_root = str(home() / ".local" / "share" / "surf-agent")
+    assert not any(line.strip() == profile_root for line in out.splitlines()), out
