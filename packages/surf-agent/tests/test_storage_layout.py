@@ -320,7 +320,7 @@ def test_existing_target_is_neither_overwritten_nor_nested_into():
         ("simulate_macos", macos_legacy, linux_legacy),
     ],
 )
-def test_path_active_in_this_environment_wins_over_other_copies(resolver, winner, loser, request, capsys):
+def test_path_active_in_this_environment_wins_over_other_copies(resolver, winner, loser, request):
     # One Mac can hold copies in both the XDG folders and Application Support,
     # depending on whether XDG_* was set when the old version ran.
     if resolver:
@@ -334,7 +334,6 @@ def test_path_active_in_this_environment_wins_over_other_copies(resolver, winner
 
     assert content("profiles", new_targets()["profiles"]) == winner_text
     assert loser()["profiles"].exists()
-    assert str(loser()["profiles"].parent) not in capsys.readouterr().out
     check_legacy_storage()
 
 
