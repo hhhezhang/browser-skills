@@ -47,7 +47,7 @@ Surf uses a dedicated Chrome profile, separate from the user's main tabs. For ma
 
 Cookie import requires explicit scope consent and an inactive, verifiably owned destination. It refreshes changed sources before startup, not on a timer. Source Chrome may remain open. Same Chrome family, OS user, and encryption metadata are required. Imports upsert unexpired cookies without propagating source deletions; disabling imports does not remove already imported cookies.
 
-To set up cookie import yourself, add `cookie_source` to Surf's `config.json` (`~/.agents/config/surf-agent/`):
+To set up cookie import yourself, add `cookie_source` to Surf's `config.json` (`~/.config/surf-agent/` on Linux, `~/Library/Application Support/surf-agent/` on macOS):
 
 ```json
 {

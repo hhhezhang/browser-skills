@@ -5,8 +5,6 @@ import json
 import sys
 from typing import IO, NoReturn, Protocol
 
-from surf_agent.legacy_storage import LegacyStorageError
-
 from .contracts import CommandOutcome, ProcessExitCode, SearchRequest
 from .errors import PublicError, PublicErrorType
 from .search_lifecycle import create_search_lifecycle
@@ -76,7 +74,7 @@ def main(
 ) -> int:
     input_stream = sys.stdin if stdin is None else stdin
     output_stream = sys.stdout if stdout is None else stdout
-    error_stream = sys.stderr if stderr is None else stderr
+    _ = stderr
     try:
         args = build_parser().parse_args(argv)
         query_input = input_stream.read() if args.query == "-" else args.query
@@ -100,11 +98,6 @@ def main(
             if error.type is PublicErrorType.INVALID_REQUEST
             else ProcessExitCode.OPERATIONAL_FAILURE,
         )
-    except LegacyStorageError as error:
-        # Temporary, removed with legacy_storage: the public error has a fixed
-        # hint, so the migration command goes to stderr for the agent to act on.
-        print(error, file=error_stream)
-        outcome = CommandOutcome.failure(PublicError(PublicErrorType.BROWSER_UNAVAILABLE))
     except Exception:
         outcome = CommandOutcome.failure(PublicError(PublicErrorType.INTERNAL_ERROR))
     try:

@@ -1,5 +1,5 @@
 ---
-status: done
+status: reverted
 ---
 
 # Store Surf files under `~/.agents`
@@ -116,3 +116,7 @@ Surf keeps `config.json` in `~/.agents/config/surf-agent/` and everything else i
 Follow-ups: #36 (Chrome caches and on-device model out of the profile), #37 (remove `legacy_storage` and platformdirs after one release), #38 (dev-environment navigation).
 
 Retrospective: an independent tester blind to the plan caught the two data-loss paths the design review had not; per-item checks (not per-root) were the right unit throughout.
+
+## Revert
+
+Reverted to the pre-#39 platformdirs layout (see ADR 0009, "Reverted"). Both machines that had migrated were moved back by hand, so the revert ships no migration code; #37 is moot.
