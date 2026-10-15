@@ -8,7 +8,10 @@ Install Google Chrome where Patchright's `chrome` channel finds it (its standard
 
 ## Runtime data
 
-- Profile: platform user data directory `profiles/chrome/`, or `$SURF_AGENT_HOME/profiles/chrome`.
+- Config: `~/.agents/config/surf-agent/config.json`.
+- State: `~/.agents/state/surf-agent/`, the same on Linux and macOS. It holds the logged-in profile (`profiles/chrome/`), so never delete it wholesale.
+- `SURF_AGENT_HOME`: replaces both roots with one directory.
+- Surf refuses to start while files remain at the pre-`~/.agents` locations, and its error gives the one-time migration command.
 - `SURF_AGENT_PROFILE_DIR`: overrides the profile.
 - `SURF_AGENT_PORT`: bridge port, default `9346`.
 - `SURF_AGENT_APP_ID`: Wayland app-id and X11 WM_CLASS of Surf's Chrome windows, default `surf-agent`.
