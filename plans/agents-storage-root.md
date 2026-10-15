@@ -80,16 +80,19 @@ Constraints:
 ## Progress
 
 - [x] Decisions agreed with user (2026-10-14).
-- [ ] Steps 1–3 implemented.
-- [ ] Docs and ADR.
+- [x] Steps 1–3 implemented.
+- [x] Docs and ADR.
 - [ ] Independent tests.
 - [ ] Independent review.
-- [ ] Runtime + pin commits.
-- [ ] Dotfiles convention and ignores.
+- [x] Runtime + pin commits (85d574b, 89032e2; re-pin if review changes the runtime).
+- [x] Dotfiles convention and ignores (dotfiles branch `feat/agents-storage-convention`, 4b1b0c3f; bullet applied to live `~/.agents/AGENTS.md` by hand because the repo holds other unpushed changes).
 - [ ] Local migration and live check.
 - [ ] PR merged.
 
 ## Surprises & Discoveries
+
+- Tests read the real home: `SurfAgent()` without `SURF_AGENT_HOME` hit the user's legacy files. `tests/conftest.py` now redirects `HOME` and unsets `XDG_{CONFIG,STATE,DATA}_HOME` for every test.
+- An old-pin bridge blocks both migration and `stop_bridge()` (guard). The migration stops a bridge bound to the legacy profile itself, since its identity check proves it is the old one.
 
 - macOS session sockets under the old layout land in `~/Library/Application Support/surf-agent/surf-agent/`; the new root shortens the socket dir path, which helps the 103-byte limit (`session.py:64`).
 - The profile is 7.0 GB but ~95% regenerable (4 GB on-device model, ~2 GB caches); cookies are ~1 MB.
