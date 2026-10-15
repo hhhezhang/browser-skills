@@ -27,9 +27,12 @@ from .runtime import (
     surf_agent_state_dir,
 )
 
-# The layout every release before the ~/.agents root used. On macOS all three
-# roots are the same Application Support folder.
+# Where releases before the ~/.agents root could have written. platformdirs
+# honors XDG_* on macOS too, so the same install used the XDG folders or
+# Application Support depending on the environment Surf ran in; check both.
 LEGACY_DIRS = PlatformDirs(APP_NAME, appauthor=False)
+XDG_DEFAULT_ROOTS = {"config": ".config", "state": ".local/state", "data": ".local/share"}
+MACOS_APP_SUPPORT = "Library/Application Support"
 LEGACY_PROFILES = "profiles"
 STOP_BRIDGE_TIMEOUT_S = 30.0
 
@@ -45,28 +48,39 @@ class LegacyStorageError(SurfAgentError):
 
 @dataclass(frozen=True)
 class LegacyItem:
-    legacy: Path
+    candidates: tuple[Path, ...]
     target: Path
 
     @property
+    def found(self) -> list[Path]:
+        return [path for path in self.candidates if path.exists()]
+
+    @property
     def pending(self) -> bool:
-        return self.legacy.exists() and not self.target.exists()
+        return len(self.found) == 1 and not self.target.exists()
 
     @property
     def conflicting(self) -> bool:
-        return self.legacy.exists() and self.target.exists()
+        return len(self.found) + self.target.exists() > 1 and bool(self.found)
 
 
-def _legacy_config() -> Path:
-    return Path(LEGACY_DIRS.user_config_dir) / "config.json"
+def _legacy_roots(kind: str) -> list[Path]:
+    resolved = {
+        "config": LEGACY_DIRS.user_config_dir,
+        "state": LEGACY_DIRS.user_state_dir,
+        "data": LEGACY_DIRS.user_data_dir,
+    }[kind]
+    home = Path.home()
+    candidates = [
+        Path(resolved),
+        home / XDG_DEFAULT_ROOTS[kind] / APP_NAME,
+        home / MACOS_APP_SUPPORT / APP_NAME,
+    ]
+    return list(dict.fromkeys(candidates))
 
 
-def _legacy_cookie_import() -> Path:
-    return Path(LEGACY_DIRS.user_state_dir) / "cookie-import.json"
-
-
-def _legacy_profiles() -> Path:
-    return Path(LEGACY_DIRS.user_data_dir) / LEGACY_PROFILES
+def _candidates(kind: str, name: str) -> tuple[Path, ...]:
+    return tuple(root / name for root in _legacy_roots(kind))
 
 
 def legacy_items() -> list[LegacyItem]:
@@ -75,11 +89,11 @@ def legacy_items() -> list[LegacyItem]:
         # An explicit home never used the platformdirs layout.
         return []
     items = [
-        LegacyItem(_legacy_config(), surf_agent_config_dir() / "config.json"),
-        LegacyItem(_legacy_cookie_import(), surf_agent_state_dir() / "cookie-import.json"),
+        LegacyItem(_candidates("config", "config.json"), surf_agent_config_dir() / "config.json"),
+        LegacyItem(_candidates("state", "cookie-import.json"), surf_agent_state_dir() / "cookie-import.json"),
     ]
     if not os.environ.get("SURF_AGENT_PROFILE_DIR"):
-        items.append(LegacyItem(_legacy_profiles(), surf_agent_state_dir() / LEGACY_PROFILES))
+        items.append(LegacyItem(_candidates("data", LEGACY_PROFILES), surf_agent_state_dir() / LEGACY_PROFILES))
     return items
 
 
@@ -93,10 +107,11 @@ def check_legacy_storage() -> None:
     Refuses while any legacy item exists, even when its target exists too:
     two profiles mean one would be ignored, and only the user knows which.
     """
-    remaining = [item for item in legacy_items() if item.legacy.exists()]
-    if not remaining:
+    listing = "\n".join(
+        f"  {path} -> {item.target}" for item in legacy_items() for path in item.found
+    )
+    if not listing:
         return
-    listing = "\n".join(f"  {item.legacy} -> {item.target}" for item in remaining)
     raise LegacyStorageError(
         "Surf files are still at their old location:\n"
         f"{listing}\n"
@@ -116,12 +131,18 @@ def migrate_legacy_storage() -> None:
         raise SurfAgentError("SURF_AGENT_HOME is set; the migration only moves the default layout")
     conflicts = [item for item in legacy_items() if item.conflicting]
     if conflicts:
-        listing = "\n".join(f"  old: {item.legacy}\n  new: {item.target}" for item in conflicts)
+        listing = "\n\n".join(
+            "\n".join(
+                [f"  old: {path}" for path in item.found]
+                + ([f"  new: {item.target}"] if item.target.exists() else [])
+            )
+            for item in conflicts
+        )
         raise SurfAgentError(
-            "These exist at both the old and the new location:\n"
+            "These exist in more than one location:\n"
             f"{listing}\n"
             "Keep the one holding your data (for a profile, the one you are logged in with), "
-            "trash the other, then re-run the migration"
+            "trash the others, then re-run the migration"
         )
     pending = pending_legacy_items()
     if not pending:
@@ -129,32 +150,35 @@ def migrate_legacy_storage() -> None:
     else:
         _end_sessions()
     for item in pending:
-        if item.legacy.name == LEGACY_PROFILES:
-            _stop_legacy_browser(item.legacy / "chrome")
+        legacy = item.found[0]
+        if legacy.name == LEGACY_PROFILES:
+            _stop_legacy_browser(legacy / "chrome")
         item.target.parent.mkdir(parents=True, exist_ok=True)
         try:
-            os.rename(item.legacy, item.target)
+            os.rename(legacy, item.target)
         except OSError as exc:
             if exc.errno != errno.EXDEV:
                 raise
             # Copying a multi-gigabyte profile is not this command's job.
             raise SurfAgentError(
-                f"{item.legacy} is on a different filesystem from {item.target}; "
+                f"{legacy} is on a different filesystem from {item.target}; "
                 "move it manually, then re-run the migration"
             ) from exc
-        print(f"Moved {item.legacy} -> {item.target}")
+        print(f"Moved {legacy} -> {item.target}")
     # Checked without overrides: SURF_AGENT_PROFILE_DIR leaves the legacy profile
     # in place, and its folder must not be offered for trashing.
-    kept = [path for path in (_legacy_config(), _legacy_cookie_import(), _legacy_profiles()) if path.exists()]
+    kept = [
+        path
+        for kind, name in (("config", "config.json"), ("state", "cookie-import.json"), ("data", LEGACY_PROFILES))
+        for path in _candidates(kind, name)
+        if path.exists()
+    ]
     leftovers = sorted(
         {
-            Path(root)
-            for root in (
-                LEGACY_DIRS.user_config_dir,
-                LEGACY_DIRS.user_state_dir,
-                LEGACY_DIRS.user_data_dir,
-            )
-            if Path(root).exists() and not any(path.is_relative_to(root) for path in kept)
+            root
+            for kind in XDG_DEFAULT_ROOTS
+            for root in _legacy_roots(kind)
+            if root.exists() and not any(path.is_relative_to(root) for path in kept)
         }
     )
     if leftovers:
@@ -169,8 +193,8 @@ def _end_sessions() -> None:
     Without XDG_RUNTIME_DIR, the previous version kept its sockets under the
     legacy state folder, where the current launcher cannot list them.
     """
-    legacy_socket_dir = Path(LEGACY_DIRS.user_state_dir) / APP_NAME
-    for directory in {session_socket_dir(), legacy_socket_dir}:
+    legacy_socket_dirs = {root / APP_NAME for root in _legacy_roots("state")}
+    for directory in {session_socket_dir(), *legacy_socket_dirs}:
         kill_sessions_in(directory)
 
 
