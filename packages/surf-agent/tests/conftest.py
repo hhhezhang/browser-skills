@@ -17,7 +17,8 @@ def isolate_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 def isolate_storage_roots(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Keep default and legacy storage paths away from the user's real files."""
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    for variable in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME"):
+    # XDG_RUNTIME_DIR too: the migration ends every session in the socket folder.
+    for variable in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR"):
         monkeypatch.delenv(variable, raising=False)
 
 

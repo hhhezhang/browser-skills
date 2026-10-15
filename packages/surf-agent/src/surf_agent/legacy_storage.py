@@ -18,6 +18,7 @@ from .backends import PatchrightBridgeClient
 from .chrome_lifecycle import find_active_chrome_roots
 from .constants import DEFAULT_PATCHRIGHT_PORT
 from .errors import SurfAgentError
+from .session import kill_sessions_in, session_socket_dir
 from .runtime import (
     APP_NAME,
     parse_port_env,
@@ -99,9 +100,8 @@ def check_legacy_storage() -> None:
     raise LegacyStorageError(
         "Surf files are still at their old location:\n"
         f"{listing}\n"
-        "Kill sessions started by the previous Surf version (on macOS they cannot be "
-        "listed; wait for their idle timeout), then move the files with the command "
-        "below. It closes a Surf browser still running from the previous version.\n"
+        "Move them with the command below. It ends running Surf sessions and closes "
+        "a Surf browser left by the previous version.\n"
         f"{MIGRATION_COMMAND}"
     )
 
@@ -126,6 +126,8 @@ def migrate_legacy_storage() -> None:
     pending = pending_legacy_items()
     if not pending:
         print("Nothing to migrate.")
+    else:
+        _end_sessions()
     for item in pending:
         if item.legacy.name == LEGACY_PROFILES:
             _stop_legacy_browser(item.legacy / "chrome")
@@ -159,6 +161,17 @@ def migrate_legacy_storage() -> None:
         print("Once Surf works from the new location, trash the old folders:")
         for root in leftovers:
             print(f"  {root}")
+
+
+def _end_sessions() -> None:
+    """End sessions that could still run the previous version against legacy paths.
+
+    Without XDG_RUNTIME_DIR, the previous version kept its sockets under the
+    legacy state folder, where the current launcher cannot list them.
+    """
+    legacy_socket_dir = Path(LEGACY_DIRS.user_state_dir) / APP_NAME
+    for directory in {session_socket_dir(), legacy_socket_dir}:
+        kill_sessions_in(directory)
 
 
 def _stop_legacy_browser(profile_dir: Path) -> None:
