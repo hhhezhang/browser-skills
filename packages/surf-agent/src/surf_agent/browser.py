@@ -12,6 +12,7 @@ from .config import CookieSourceConfig
 from .constants import PATCHRIGHT_BROWSER_FAMILY
 from .cookie_import import UNSUPPORTED_PLATFORM_MESSAGE, CookieImportResult, supports_live_cookie_import
 from .errors import SurfAgentError
+from .legacy_storage import check_legacy_storage
 from .runtime import SurfAgent
 
 
@@ -28,6 +29,13 @@ class ThreadInfo:
     page_id: int | None
     url: str | None
     title: str | None
+
+
+def _config_file() -> Path:
+    # Cookie-source calls never construct SurfAgent, so they need their own
+    # check; writing a fresh config would otherwise hide the legacy one.
+    check_legacy_storage()
+    return runtime.config_file()
 
 
 def _check_status(status: int | None, operation: str) -> None:
@@ -57,7 +65,7 @@ class Browser:
         _check_status(SurfAgent().profile_open(url), "profile open")
 
     def cookie_source(self) -> CookieSourceConfig | None:
-        return config.get_cookie_source(path=runtime.config_file())
+        return config.get_cookie_source(path=_config_file())
 
     def set_cookie_source(
         self,
@@ -83,11 +91,11 @@ class Browser:
             raise SurfAgentError(
                 "cookie source browser family does not match the Surf destination browser"
             )
-        config.set_cookie_source(value, path=runtime.config_file())
+        config.set_cookie_source(value, path=_config_file())
         return value
 
     def reset_cookie_source(self) -> None:
-        config.reset_cookie_source(path=runtime.config_file())
+        config.reset_cookie_source(path=_config_file())
 
     def import_cookies(self) -> CookieImportResult:
         if self.cookie_source() is None:

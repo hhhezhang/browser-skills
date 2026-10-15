@@ -217,3 +217,48 @@ def test_invalid_search_requests_return_one_content_free_json_error(argv: list[s
 
 def test_help_explains_how_to_read_stdin() -> None:
     assert "Use - to read stdin." in cli.build_parser().format_help()
+
+
+def test_legacy_surf_files_fail_as_browser_unavailable_with_migration_command(
+    tmp_path, monkeypatch
+) -> None:
+    # Isolate Surf's storage: the legacy check reads the old platformdirs paths.
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    for variable in (
+        "XDG_CONFIG_HOME",
+        "XDG_STATE_HOME",
+        "XDG_DATA_HOME",
+        "SURF_AGENT_HOME",
+        "SURF_AGENT_PROFILE_DIR",
+    ):
+        monkeypatch.delenv(variable, raising=False)
+    legacy_config = home / ".config" / "surf-agent" / "config.json"
+    legacy_config.parent.mkdir(parents=True)
+    legacy_config.write_text("{}")
+    # Guards in case the check does not fire: no real bridge on the default
+    # port is reachable and no bridge (hence no Chrome or Google) can spawn.
+    import socket
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        monkeypatch.setenv("SURF_AGENT_PORT", str(probe.getsockname()[1]))
+
+    def no_spawn(*_args, **_kwargs):
+        raise AssertionError("search reached bridge startup")
+
+    monkeypatch.setattr("surf_agent.backends.local_bridge.subprocess.Popen", no_spawn)
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = cli.main(
+        ["latest Patchright documentation"],
+        stdin=io.StringIO(""),
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code != 0
+    assert json.loads(stdout.getvalue())["error"]["type"] == "browser_unavailable"
+    assert "migrate_legacy_storage" in stderr.getvalue()
+    assert legacy_config.read_text() == "{}"

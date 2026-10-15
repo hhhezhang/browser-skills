@@ -14,6 +14,14 @@ def isolate_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 @pytest.fixture(autouse=True)
+def isolate_storage_roots(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Keep default and legacy storage paths away from the user's real files."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    for variable in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME"):
+        monkeypatch.delenv(variable, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def isolate_emission_baselines(monkeypatch: pytest.MonkeyPatch) -> None:
     """Baselines live for the whole process; tests reuse thread names."""
     import surf_agent.thread as thread

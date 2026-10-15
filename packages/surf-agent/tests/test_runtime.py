@@ -13,13 +13,11 @@ from surf_agent.errors import BridgeUnavailable
 from surf_agent.snapshots import SnapshotCapture, choose_snapshot_diff
 from surf_agent.runtime import (
     find_chrome_bin,
-    APP_DIRS,
     SurfAgent,
     SurfAgentError,
     config_file,
     default_patchright_profile_dir,
     surf_agent_config_dir,
-    surf_agent_data_dir,
     surf_agent_state_dir,
 )
 
@@ -62,32 +60,8 @@ class RuntimeTests(unittest.TestCase):
             home = Path(tmp)
             self.assertEqual(surf_agent_config_dir(), home)
             self.assertEqual(surf_agent_state_dir(), home)
-            self.assertEqual(surf_agent_data_dir(), home)
             self.assertEqual(config_file(), home / "config.json")
             self.assertEqual(default_patchright_profile_dir(), home / "profiles" / "chrome")
-
-    def test_platformdirs_fallback_replaces_package_local_data_dir(self):
-        with patch.dict("os.environ", {}, clear=True):
-            package_local = Path(__file__).resolve().parents[1] / ".surf-agent"
-            self.assertEqual(
-                config_file(), Path(APP_DIRS.user_config_dir) / "config.json"
-            )
-            self.assertEqual(
-                default_patchright_profile_dir(),
-                Path(APP_DIRS.user_data_dir) / "profiles" / "chrome",
-            )
-            self.assertNotEqual(
-                default_patchright_profile_dir(), package_local / "profiles" / "chrome"
-            )
-
-    def test_default_profiles_live_under_surf_agent_data_dir(self):
-        with (
-            TemporaryDirectory() as tmp,
-            patch.dict("os.environ", {"SURF_AGENT_HOME": tmp}, clear=True),
-        ):
-            self.assertEqual(
-                default_patchright_profile_dir(), surf_agent_data_dir() / "profiles" / "chrome"
-            )
 
     def test_patchright_profile_open_uses_patchright_profile_dir_and_app_id(self):
         with (
