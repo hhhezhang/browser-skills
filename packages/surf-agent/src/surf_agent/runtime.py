@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any, Sequence
 from urllib.parse import quote
 
+from platformdirs import PlatformDirs
+
 from . import config as persisted_config
 from .backends import PatchrightBackend, PatchrightBridgeClient
 from .chrome_lifecycle import ChromeLifecycleCoordinator, find_active_chrome_roots
@@ -28,11 +30,7 @@ from .cookie_import import CookieImporter
 from .processes import iter_process_args
 from .errors import SurfAgentError
 
-# Agent tools share one OS-independent root: ~/.agents/<kind>/<app>.
-# platformdirs collapses config and state into one folder on macOS, so its
-# layout was neither uniform across platforms nor meaningfully separated.
-AGENTS_ROOT_NAME = ".agents"
-APP_NAME = "surf-agent"
+APP_DIRS = PlatformDirs("surf-agent", appauthor=False)
 
 
 class SurfAgent:
@@ -45,10 +43,6 @@ class SurfAgent:
         patchright_profile_dir: Path | None = None,
         patchright_app_id: str | None = None,
     ) -> None:
-        # Imported here: legacy_storage builds on this module's path functions.
-        from .legacy_storage import check_legacy_storage
-
-        check_legacy_storage()
         self.chrome_bin = (
             chrome_bin or os.environ.get("SURF_AGENT_CHROME_BIN") or find_chrome_bin()
         )
@@ -124,17 +118,16 @@ def surf_agent_home() -> Path | None:
     return Path(value).expanduser() if value else None
 
 
-def agents_root() -> Path:
-    return Path.home() / AGENTS_ROOT_NAME
-
-
 def surf_agent_config_dir() -> Path:
-    return surf_agent_home() or agents_root() / "config" / APP_NAME
+    return surf_agent_home() or Path(APP_DIRS.user_config_dir)
 
 
 def surf_agent_state_dir() -> Path:
-    """Everything Surf writes and keeps, including the logged-in Chrome profile."""
-    return surf_agent_home() or agents_root() / "state" / APP_NAME
+    return surf_agent_home() or Path(APP_DIRS.user_state_dir)
+
+
+def surf_agent_data_dir() -> Path:
+    return surf_agent_home() or Path(APP_DIRS.user_data_dir)
 
 
 def config_file() -> Path:
@@ -145,7 +138,7 @@ def default_patchright_profile_dir() -> Path:
     value = os.environ.get("SURF_AGENT_PROFILE_DIR")
     if value:
         return Path(value).expanduser()
-    return surf_agent_state_dir() / "profiles" / "chrome"
+    return surf_agent_data_dir() / "profiles" / "chrome"
 
 
 def safe_thread_name(thread: str) -> str:

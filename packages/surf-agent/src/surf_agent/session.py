@@ -856,24 +856,7 @@ def kill_session(session_id: str, *, timeout_s: float = WORKER_START_TIMEOUT_S) 
     """
     _reap_children()
     _validate_session_id(session_id)
-    return _kill_socket(session_socket_path(session_id), session_id, timeout_s)
-
-
-def kill_sessions_in(directory: Path, *, timeout_s: float = WORKER_START_TIMEOUT_S) -> list[str]:
-    """Stop every session interpreter listening in *directory*; return the ids stopped."""
-    _reap_children()
-    stopped = []
-    for socket_path in sorted(directory.glob(f"*{_SOCKET_SUFFIX}")):
-        # A caller running inside a session must not end its own interpreter.
-        if _listener_pid(socket_path) == os.getpid():
-            continue
-        session_id = _session_id_of(socket_path)
-        if _kill_socket(socket_path, session_id, timeout_s):
-            stopped.append(session_id)
-    return stopped
-
-
-def _kill_socket(socket_path: Path, session_id: str, timeout_s: float) -> bool:
+    socket_path = session_socket_path(session_id)
     probe = _probe(socket_path, HELLO_TIMEOUT_S)
     if probe.state == "gone":
         _discard_stale_socket(socket_path)

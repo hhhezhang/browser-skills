@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: rejected
 ---
 
 # Store Surf files under `~/.agents`
@@ -33,3 +33,7 @@ Scored on uniform paths across OS (30%), one convention for agent tools (20%), s
 ## Consequences
 
 `~/.agents` is synced by dotman, so `config/` and `state/` are ignored there. Sandboxes that protect `~/.agents` must grant write access to `~/.agents/state` only, never to all of `~/.agents`. `surf_agent.legacy_storage` refuses to start while files remain at the old paths and provides the one-time `migrate_legacy_storage()`; it is removed, together with the platformdirs dependency, after installs migrate.
+
+## Reverted
+
+Surf went back to platformdirs a day after this shipped. Its paths are a standard other people already know, while `~/.agents/<kind>` was a private convention that put a multi-gigabyte Chrome profile inside a folder people often sync or version with their dotfiles. The cost of the revert is the split this ADR set out to remove: a macOS shell that sets `XDG_*` sends files to the XDG folders, while apps started outside it use `~/Library/Application Support`. That is intended; the fix belongs in the environment (give GUI apps the same `XDG_*`), not in Surf.
