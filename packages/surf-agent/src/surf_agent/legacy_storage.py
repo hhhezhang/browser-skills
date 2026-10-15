@@ -125,8 +125,7 @@ def migrate_legacy_storage() -> None:
 
     Safe to re-run: each item moves only while its target is absent, so an
     interrupted run finishes on the next one and nothing is nested or replaced.
-    Copies that lose to the active path stay put and are listed with the old
-    folders to trash.
+    Copies that lose to the active path stay where they are, unmentioned.
     """
     if surf_agent_home():
         raise SurfAgentError("SURF_AGENT_HOME is set; the migration only moves the default layout")
@@ -151,13 +150,14 @@ def migrate_legacy_storage() -> None:
                 "move it manually, then re-run the migration"
             ) from exc
         print(f"Moved {legacy} -> {item.target}")
-    # SURF_AGENT_PROFILE_DIR leaves the legacy profile unmigrated, so its folder
-    # must not be offered for trashing.
-    kept = (
-        [path for path in _candidates("data", LEGACY_PROFILES) if path.exists()]
-        if os.environ.get("SURF_AGENT_PROFILE_DIR")
-        else []
-    )
+    # Unpicked copies and items an override leaves behind stay untouched, and
+    # so does any folder holding one.
+    kept = [
+        path
+        for kind, name in (("config", "config.json"), ("state", "cookie-import.json"), ("data", LEGACY_PROFILES))
+        for path in _candidates(kind, name)
+        if path.exists()
+    ]
     leftovers = sorted(
         {
             root
