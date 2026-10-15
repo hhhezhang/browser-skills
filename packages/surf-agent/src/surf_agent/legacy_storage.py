@@ -47,6 +47,10 @@ class LegacyItem:
     def pending(self) -> bool:
         return self.legacy.exists() and not self.target.exists()
 
+    @property
+    def conflicting(self) -> bool:
+        return self.legacy.exists() and self.target.exists()
+
 
 def legacy_items() -> list[LegacyItem]:
     """The files worth keeping, paired with their new location."""
@@ -78,11 +82,15 @@ def pending_legacy_items() -> list[LegacyItem]:
 
 
 def check_legacy_storage() -> None:
-    """Fail fast instead of silently starting a fresh, logged-out profile."""
-    pending = pending_legacy_items()
-    if not pending:
+    """Fail fast instead of silently starting a fresh, logged-out profile.
+
+    Refuses while any legacy item exists, even when its target exists too:
+    two profiles mean one would be ignored, and only the user knows which.
+    """
+    remaining = [item for item in legacy_items() if item.legacy.exists()]
+    if not remaining:
         return
-    listing = "\n".join(f"  {item.legacy} -> {item.target}" for item in pending)
+    listing = "\n".join(f"  {item.legacy} -> {item.target}" for item in remaining)
     raise SurfAgentError(
         "Surf files are still at their old location:\n"
         f"{listing}\n"
@@ -97,6 +105,14 @@ def migrate_legacy_storage() -> None:
     Safe to re-run: each item moves only while its target is absent, so an
     interrupted run finishes on the next one and nothing is nested or replaced.
     """
+    conflicts = [item for item in legacy_items() if item.conflicting]
+    if conflicts:
+        listing = "\n".join(f"  {item.legacy}\n  {item.target}" for item in conflicts)
+        raise SurfAgentError(
+            "These exist at both the old and the new location:\n"
+            f"{listing}\n"
+            "Keep one of each pair, trash the other, then re-run the migration"
+        )
     pending = pending_legacy_items()
     if not pending:
         print("Nothing to migrate.")

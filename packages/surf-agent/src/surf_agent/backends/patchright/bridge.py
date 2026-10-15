@@ -774,11 +774,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--app-id", default=os.environ.get("SURF_AGENT_APP_ID") or DEFAULT_PATCHRIGHT_APP_ID)
     args = parser.parse_args(argv)
-    # Imported here: runtime imports the backends package, so a module-level
-    # import would be circular.
-    from ...runtime import default_patchright_profile_dir
+    if args.profile_dir:
+        profile_dir = Path(args.profile_dir).expanduser()
+    else:
+        # Imported here: runtime imports the backends package, so a module-level
+        # import would be circular.
+        from ...legacy_storage import check_legacy_storage
+        from ...runtime import default_patchright_profile_dir
 
-    profile_dir = Path(args.profile_dir).expanduser() if args.profile_dir else default_patchright_profile_dir()
+        check_legacy_storage()
+        profile_dir = default_patchright_profile_dir()
     RequestHandler.runtime = PatchrightRuntime(profile_dir=profile_dir, headless=args.headless, app_id=args.app_id)
     # Playwright/Patchright sync objects are bound to the thread that created them.
     # Use a single-threaded HTTP server so every browser call runs on one thread.
