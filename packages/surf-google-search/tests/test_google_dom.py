@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Iterator
+from urllib.parse import urlencode
 
 import pytest
 from patchright.sync_api import Browser, sync_playwright
 
 from surf_agent.runtime import find_chrome_bin
 from surf_google_search.browser_port import GOOGLE_PAGE_OBSERVATION_SCRIPT
+from surf_google_search.urls import clean_destination_url
 
 
 @pytest.fixture(scope="module")
@@ -88,6 +90,58 @@ PAGER = """
 </td></tr></table></div>
 """
 ORGANIC_RESULT = organic_card(1, "https://example.com/result", "Fixture result")
+
+
+def google_redirect(destination: str, *, path: str = "/url", parameter: str = "q") -> str:
+    return "https://www.google.com" + path + "?" + urlencode({parameter: destination})
+
+
+@pytest.mark.parametrize("path", ["/url", "/goto"])
+@pytest.mark.parametrize("parameter", ["q", "url"])
+@pytest.mark.parametrize("nested", [False, True])
+def test_google_redirect_result_reaches_the_url_cleaner(
+    browser: Browser, path: str, parameter: str, nested: bool,
+) -> None:
+    destination = "https://example.com/result?srsltid=tracking#section:~:text=highlight"
+    wrapped = google_redirect(destination, path=path, parameter=parameter)
+    if nested:
+        wrapped = google_redirect(wrapped)
+    # The displayed publisher URL, not Google's wrapper host, supplies the
+    # host fingerprint when cite and metadata markers disappear.
+    card = organic_card(
+        1, destination, "Wrapped result", cite=False, data_attributes=False,
+    ).replace(f"href='{destination}'", f"href='{wrapped}'")
+
+    observation = observe_fixture(browser, card + PAGER)
+
+    assert observation["kind"] == "results"
+    assert [result["url"] for result in observation["results"]] == [wrapped]
+    assert clean_destination_url(observation["results"][0]["url"]) == (
+        "https://example.com/result#section"
+    )
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.google.com/search?q=other",
+    "https://www.google.com/aclk?adurl=https%3A%2F%2Fexample.com",
+    "https://www.google.com/url",
+    "https://www.google.com/goto?url=opaque-token",
+    "https://news.google.com/url?q=https%3A%2F%2Fexample.com",
+    "https://www.google.co.uk/url?q=https%3A%2F%2Fexample.com",
+    google_redirect("javascript:alert(1)"),
+    google_redirect("file:///tmp/report"),
+    google_redirect("/relative-destination"),
+    google_redirect("https://user:password@example.com/report"),
+    google_redirect("https://www.google.com/search?q=other"),
+    google_redirect("https://example.com:invalid/report"),
+    google_redirect(google_redirect(google_redirect("https://example.com/result"))),
+])
+def test_unusable_google_redirect_is_not_a_result(browser: Browser, url: str) -> None:
+    card = organic_card(2, url, "Not an external destination")
+
+    observation = observe_fixture(browser, ORGANIC_RESULT + card + PAGER)
+
+    assert [result["url"] for result in observation["results"]] == ["https://example.com/result"]
 
 
 def test_captcha_structure_requires_human_intervention(browser: Browser) -> None:

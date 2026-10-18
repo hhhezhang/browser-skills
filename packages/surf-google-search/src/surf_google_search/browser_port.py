@@ -236,8 +236,19 @@ GOOGLE_PAGE_OBSERVATION_SCRIPT = r"""
     || [...link.attributes].some(attribute => isAdClickUrl(attribute.value));
   const destinationHost = link => {
     try {
-      const url = new URL(link.href);
-      return /^https?:$/.test(url.protocol) && !isGoogleHost(url.hostname) ? url.hostname : null;
+      let url = new URL(link.href);
+      // Match the URL cleaner's two-wrapper limit and use the publisher host
+      // for scoring. Keep the original href in the observation so the cleaner
+      // still owns normalization and deduplication; never fetch a redirect.
+      for (let remaining = 2; ; remaining--) {
+        if (!/^https?:$/.test(url.protocol) || url.username || url.password) return null;
+        if (!isGoogleHost(url.hostname)) return url.hostname;
+        if (!remaining || !['google.com', 'www.google.com'].includes(url.hostname)
+            || !['/url', '/goto'].includes(url.pathname)) return null;
+        const destination = url.searchParams.get('q') || url.searchParams.get('url');
+        if (!destination) return null;
+        url = new URL(destination);
+      }
     } catch {
       return null;
     }
