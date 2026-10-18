@@ -245,7 +245,10 @@ GOOGLE_PAGE_OBSERVATION_SCRIPT = r"""
         if (!isGoogleHost(url.hostname)) return url.hostname;
         if (!remaining || !['google.com', 'www.google.com'].includes(url.hostname)
             || !['/url', '/goto'].includes(url.pathname)) return null;
-        const destination = url.searchParams.get('q') || url.searchParams.get('url');
+        // Python's dict(parse_qsl(...)) keeps the last occurrence, including
+        // blanks; use the same selection before applying q-to-url fallback.
+        const parameters = Object.fromEntries(url.searchParams);
+        const destination = parameters.q || parameters.url;
         if (!destination) return null;
         url = new URL(destination);
       }

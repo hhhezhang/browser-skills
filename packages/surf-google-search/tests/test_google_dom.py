@@ -9,7 +9,7 @@ from patchright.sync_api import Browser, sync_playwright
 
 from surf_agent.runtime import find_chrome_bin
 from surf_google_search.browser_port import GOOGLE_PAGE_OBSERVATION_SCRIPT
-from surf_google_search.urls import clean_destination_url
+from surf_google_search.urls import InvalidDestinationUrl, clean_destination_url
 
 
 @pytest.fixture(scope="module")
@@ -142,6 +142,58 @@ def test_unusable_google_redirect_is_not_a_result(browser: Browser, url: str) ->
     observation = observe_fixture(browser, ORGANIC_RESULT + card + PAGER)
 
     assert [result["url"] for result in observation["results"]] == ["https://example.com/result"]
+
+
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize(("parameters", "accepted"), [
+    *[
+        pytest.param([(key, first), (key, last)], accepted, id=f"{key}-{label}")
+        for key in ("q", "url")
+        for first, last, accepted, label in (
+            ("", "https://publisher.example/report", True, "blank-then-valid"),
+            ("https://publisher.example/report", "", False, "valid-then-blank"),
+            ("javascript:alert(1)", "https://publisher.example/report", True, "unsafe-then-valid"),
+            ("https://publisher.example/report", "javascript:alert(1)", False, "valid-then-unsafe"),
+            ("https://other.example/report", "https://publisher.example/report", True, "last-host-wins"),
+        )
+    ],
+    pytest.param([
+        ("q", "https://other.example/report"), ("q", ""),
+        ("url", "https://publisher.example/report"),
+    ], True, id="last-blank-q-falls-back-to-url"),
+    pytest.param([
+        ("q", ""), ("q", "https://publisher.example/report"),
+        ("url", "javascript:alert(1)"),
+    ], True, id="last-q-takes-precedence"),
+    pytest.param([
+        ("q", ""), ("q", "javascript:alert(1)"),
+        ("url", "https://publisher.example/report"),
+    ], False, id="unsafe-last-q-does-not-fall-back"),
+    pytest.param([
+        ("q", ""), ("url", ""), ("url", "https://publisher.example/report"),
+    ], True, id="blank-q-uses-last-url"),
+])
+def test_duplicate_redirect_parameters_match_cleaner(
+    browser: Browser, parameters: list[tuple[str, str]], accepted: bool, nested: bool,
+) -> None:
+    destination = "https://publisher.example/report"
+    wrapped = "https://www.google.com/url?" + urlencode(parameters)
+    if nested:
+        wrapped = google_redirect(wrapped, path="/goto", parameter="url")
+    card = organic_card(
+        2, destination, "Duplicate parameter result", cite=False, data_attributes=False,
+    ).replace(f"href='{destination}'", f"href='{wrapped}'")
+
+    observation = observe_fixture(browser, ORGANIC_RESULT + card + PAGER)
+
+    expected = ["https://example.com/result"]
+    if accepted:
+        expected.append(wrapped)
+        assert clean_destination_url(wrapped) == destination
+    else:
+        with pytest.raises(InvalidDestinationUrl):
+            clean_destination_url(wrapped)
+    assert [result["url"] for result in observation["results"]] == expected
 
 
 def test_captcha_structure_requires_human_intervention(browser: Browser) -> None:
